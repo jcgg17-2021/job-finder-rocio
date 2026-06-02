@@ -4,69 +4,124 @@ export default async function handler(req, res) {
   const { prompt } = req.body;
   if (!prompt) return res.status(400).json({ error: "Falta el prompt" });
 
-  const ROCIO_PROFILE = `
-Rocío Sánchez — Paralegal / Legal Assistant Bilingüe
-- Especialidades: Derecho Migratorio EE.UU. (Asylum I-589, 42B, I-360, I-765, Removal Defense), Propiedad Intelectual (patentes, diseños industriales)
-- Idiomas: Español nativo, Inglés avanzado (TOEIC 920/990)
-- Educación: Licenciatura en Pedagogía - UNAM FES Aragón
-- Experiencia: 10+ años — New Frontier Immigration Law, Aguila Immigration Services, Clarke Modet, Hasbro México
-- Habilidades: Redacción legal en inglés/español, gestión de casos, atención a clientes, coordinación internacional, capacitación de personal
-- Modalidad buscada: Remoto / Home Office
-`;
+  const keywords = encodeURIComponent("paralegal bilingual spanish immigration remote");
+  const keywordsES = encodeURIComponent("paralegal bilingüe español remoto");
 
-  try {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": process.env.ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-       model: "claude-sonnet-4-5",
-        max_tokens: 2000,
-        system: `Eres un experto en búsqueda de empleo. Responde SOLO con un JSON válido sin backticks ni markdown.
-El JSON debe tener exactamente esta estructura:
-{"vacantes":[{"titulo":"string","empresa":"string","plataforma":"string","modalidad":"Remoto","ubicacion":"string","descripcion":"string","url":"string","salario":"string","relevancia":"Alta"}]}
-Genera 6 vacantes.`,
-        messages: [{
-          role: "user",
-          content: `Perfil: ${ROCIO_PROFILE}\n\nBúsqueda: ${prompt}\n\nResponde solo con el JSON.`
-        }]
-      })
-    });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      return res.status(500).json({ error: "API error: " + errText });
+  const vacantes = [
+    {
+      titulo: "Paralegal Bilingüe - Inmigración",
+      empresa: "Buscar en LinkedIn",
+      plataforma: "LinkedIn",
+      modalidad: "Remoto",
+      ubicacion: "Worldwide",
+      descripcion: "Resultados en tiempo real de LinkedIn para paralegal bilingüe en inmigración remoto.",
+      url: `https://www.linkedin.com/jobs/search/?keywords=${encodeURIComponent("bilingual paralegal immigration remote")}&f_WT=2`,
+      salario: "Ver en plataforma",
+      relevancia: "Alta"
+    },
+    {
+      titulo: "Legal Assistant Bilingüe - Remote",
+      empresa: "Buscar en Indeed",
+      plataforma: "Indeed",
+      modalidad: "Remoto",
+      ubicacion: "USA / Worldwide",
+      descripcion: "Resultados actuales en Indeed para asistente legal bilingüe español-inglés remoto.",
+      url: `https://www.indeed.com/jobs?q=bilingual+paralegal+immigration&l=Remote&sort=date`,
+      salario: "Ver en plataforma",
+      relevancia: "Alta"
+    },
+    {
+      titulo: "Remote Paralegal - Immigration Law",
+      empresa: "Buscar en RemoteOK",
+      plataforma: "RemoteOK",
+      modalidad: "Remoto",
+      ubicacion: "Worldwide",
+      descripcion: "Vacantes remotas globales para paralegal en derecho migratorio.",
+      url: `https://remoteok.com/remote-paralegal-jobs`,
+      salario: "Ver en plataforma",
+      relevancia: "Alta"
+    },
+    {
+      titulo: "Bilingual Legal Assistant - Remote",
+      empresa: "Buscar en WeWorkRemotely",
+      plataforma: "WeWorkRemotely",
+      modalidad: "Remoto",
+      ubicacion: "Worldwide",
+      descripcion: "Posiciones remotas para asistente legal bilingüe en empresas internacionales.",
+      url: `https://weworkremotely.com/remote-jobs/search?term=bilingual+legal+paralegal`,
+      salario: "Ver en plataforma",
+      relevancia: "Alta"
+    },
+    {
+      titulo: "Paralegal / Asistente Legal - Home Office",
+      empresa: "Buscar en OCC",
+      plataforma: "OCC",
+      modalidad: "Home Office",
+      ubicacion: "México",
+      descripcion: "Vacantes recientes en OCC para paralegal o asistente legal bilingüe en México.",
+      url: `https://www.occ.com.mx/empleos/de-paralegal-asistente-legal/?modality=3`,
+      salario: "Ver en plataforma",
+      relevancia: "Alta"
+    },
+    {
+      titulo: "Asistente Jurídico Bilingüe - Remoto",
+      empresa: "Buscar en Computrabajo",
+      plataforma: "Computrabajo",
+      modalidad: "Home Office",
+      ubicacion: "México / LATAM",
+      descripcion: "Búsqueda en Computrabajo de puestos jurídicos bilingües en modalidad remota.",
+      url: `https://www.computrabajo.com.mx/trabajo-de-asistente-juridico-bilingue?modality=remote`,
+      salario: "Ver en plataforma",
+      relevancia: "Media"
+    },
+    {
+      titulo: "Remote Legal Jobs - Bilingual Spanish",
+      empresa: "Buscar en FlexJobs",
+      plataforma: "FlexJobs",
+      modalidad: "Remoto",
+      ubicacion: "Worldwide",
+      descripcion: "FlexJobs especializado en trabajo remoto y flexible para profesionales legales bilingües.",
+      url: `https://www.flexjobs.com/jobs/paralegal-bilingual-spanish?remote=true`,
+      salario: "Ver en plataforma",
+      relevancia: "Alta"
+    },
+    {
+      titulo: "Paralegal - Propiedad Intelectual Remoto",
+      empresa: "Buscar en Jobicy",
+      plataforma: "Jobicy",
+      modalidad: "Remoto",
+      ubicacion: "Worldwide",
+      descripcion: "Vacantes globales en Jobicy para paralegal en propiedad intelectual y derecho internacional.",
+      url: `https://jobicy.com/?s=paralegal+bilingual+legal`,
+      salario: "Ver en plataforma",
+      relevancia: "Media"
     }
+  ];
 
-    const data = await response.json();
-    console.log("API response:", JSON.stringify(data).substring(0, 500));
-
-    if (!data.content || data.content.length === 0) {
-      return res.status(500).json({ error: "Respuesta vacía de API", raw: data });
-    }
-
-    const text = data.content
-      .filter(b => b.type === "text")
-      .map(b => b.text)
-      .join("");
-
-    if (!text) {
-      return res.status(500).json({ error: "Sin texto en respuesta", content: data.content });
-    }
-
-    const clean = text.replace(/```json|```/gi, "").trim();
-    const match = clean.match(/\{[\s\S]*\}/);
-    if (!match) {
-      return res.status(500).json({ error: "No se encontró JSON", text: clean.substring(0, 200) });
-    }
-
-    const parsed = JSON.parse(match[0]);
-    res.status(200).json(parsed);
-
-  } catch (err) {
-    res.status(500).json({ error: "Excepción: " + err.message });
+  // Filtrar por prompt si contiene palabras clave específicas
+  let filtradas = vacantes;
+  if (prompt.includes("propiedad intelectual") || prompt.includes("patentes")) {
+    filtradas = vacantes.map(v => ({
+      ...v,
+      url: v.plataforma === "LinkedIn" 
+        ? "https://www.linkedin.com/jobs/search/?keywords=paralegal+intellectual+property+bilingual+remote&f_WT=2"
+        : v.plataforma === "Indeed"
+        ? "https://www.indeed.com/jobs?q=paralegal+intellectual+property+bilingual&l=Remote&sort=date"
+        : v.url
+    }));
+  } else if (prompt.includes("México") || prompt.includes("home office")) {
+    filtradas = vacantes.filter(v => ["OCC", "Computrabajo", "LinkedIn", "Indeed"].includes(v.plataforma));
+  } else if (prompt.includes("pedagog") || prompt.includes("capacitación")) {
+    filtradas = vacantes.map(v => ({
+      ...v,
+      titulo: v.plataforma === "LinkedIn" ? "Instructional Designer / Capacitación Remoto" : v.titulo,
+      url: v.plataforma === "LinkedIn"
+        ? "https://www.linkedin.com/jobs/search/?keywords=instructional+designer+bilingual+spanish+remote&f_WT=2"
+        : v.plataforma === "Indeed"
+        ? "https://www.indeed.com/jobs?q=instructional+designer+bilingual+spanish&l=Remote&sort=date"
+        : v.url
+    }));
   }
+
+  res.status(200).json({ vacantes: filtradas });
 }
