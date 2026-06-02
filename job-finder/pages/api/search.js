@@ -4,124 +4,112 @@ export default async function handler(req, res) {
   const { prompt } = req.body;
   if (!prompt) return res.status(400).json({ error: "Falta el prompt" });
 
-  const keywords = encodeURIComponent("paralegal bilingual spanish immigration remote");
-  const keywordsES = encodeURIComponent("paralegal bilingüe español remoto");
+  const esIP = prompt.includes("propiedad intelectual") || prompt.includes("patentes");
+  const esMX = prompt.includes("México") || prompt.includes("home office");
+  const esPed = prompt.includes("pedagog") || prompt.includes("capacitación");
+
+  const termino = esIP
+    ? "paralegal+intellectual+property+bilingual"
+    : esPed
+    ? "instructional+designer+bilingual+spanish"
+    : "paralegal+immigration+bilingual+spanish";
+
+  const terminoES = esIP
+    ? "paralegal+propiedad+intelectual+bilingue"
+    : esPed
+    ? "capacitacion+corporativa+bilingue+remoto"
+    : "paralegal+juridico+bilingue+remoto";
 
   const vacantes = [
     {
-      titulo: "Paralegal Bilingüe - Inmigración",
-      empresa: "Buscar en LinkedIn",
+      titulo: esIP ? "Paralegal IP Bilingüe - Remoto" : esPed ? "Instructional Designer Bilingüe" : "Paralegal Inmigración Bilingüe",
+      empresa: "LinkedIn Jobs",
       plataforma: "LinkedIn",
       modalidad: "Remoto",
       ubicacion: "Worldwide",
-      descripcion: "Resultados en tiempo real de LinkedIn para paralegal bilingüe en inmigración remoto.",
-      url: `https://www.linkedin.com/jobs/search/?keywords=${encodeURIComponent("bilingual paralegal immigration remote")}&f_WT=2`,
+      descripcion: "Resultados en tiempo real ordenados por fecha en LinkedIn. Filtra por 'Remote' y 'Most Recent'.",
+      url: `https://www.linkedin.com/jobs/search/?keywords=${termino.replace(/\+/g, "%20")}&f_WT=2&sortBy=DD`,
       salario: "Ver en plataforma",
       relevancia: "Alta"
     },
     {
-      titulo: "Legal Assistant Bilingüe - Remote",
-      empresa: "Buscar en Indeed",
+      titulo: esIP ? "IP Paralegal Remote" : esPed ? "Training Coordinator Remote" : "Immigration Paralegal Remote",
+      empresa: "Indeed",
       plataforma: "Indeed",
       modalidad: "Remoto",
       ubicacion: "USA / Worldwide",
-      descripcion: "Resultados actuales en Indeed para asistente legal bilingüe español-inglés remoto.",
-      url: `https://www.indeed.com/jobs?q=bilingual+paralegal+immigration&l=Remote&sort=date`,
+      descripcion: "Vacantes ordenadas por fecha más reciente en Indeed. Clic en 'Date posted' para filtrar.",
+      url: `https://www.indeed.com/jobs?q=${termino}&sc=0kf%3Aattr(DSQF7)%3B&sort=date`,
       salario: "Ver en plataforma",
       relevancia: "Alta"
     },
     {
-      titulo: "Remote Paralegal - Immigration Law",
-      empresa: "Buscar en RemoteOK",
+      titulo: "Remote Paralegal / Legal Jobs",
+      empresa: "RemoteOK",
       plataforma: "RemoteOK",
       modalidad: "Remoto",
       ubicacion: "Worldwide",
-      descripcion: "Vacantes remotas globales para paralegal en derecho migratorio.",
-      url: `https://remoteok.com/remote-paralegal-jobs`,
+      descripcion: "Portal especializado en trabajo 100% remoto. Resultados globales para perfiles legales.",
+      url: `https://remoteok.com/remote-legal-jobs`,
       salario: "Ver en plataforma",
       relevancia: "Alta"
     },
     {
-      titulo: "Bilingual Legal Assistant - Remote",
-      empresa: "Buscar en WeWorkRemotely",
+      titulo: "Remote Legal / Paralegal Positions",
+      empresa: "We Work Remotely",
       plataforma: "WeWorkRemotely",
       modalidad: "Remoto",
       ubicacion: "Worldwide",
-      descripcion: "Posiciones remotas para asistente legal bilingüe en empresas internacionales.",
-      url: `https://weworkremotely.com/remote-jobs/search?term=bilingual+legal+paralegal`,
+      descripcion: "Una de las bolsas de trabajo remoto más grandes del mundo. Sección Legal & Finance.",
+      url: `https://weworkremotely.com/categories/remote-legal-jobs`,
       salario: "Ver en plataforma",
       relevancia: "Alta"
     },
     {
-      titulo: "Paralegal / Asistente Legal - Home Office",
-      empresa: "Buscar en OCC",
+      titulo: esPed ? "Capacitación / E-Learning Remoto" : "Paralegal / Asistente Legal",
+      empresa: "OCC Mundial",
       plataforma: "OCC",
       modalidad: "Home Office",
       ubicacion: "México",
-      descripcion: "Vacantes recientes en OCC para paralegal o asistente legal bilingüe en México.",
-      url: `https://www.occ.com.mx/empleos/de-paralegal-asistente-legal/?modality=3`,
+      descripcion: "Bolsa de trabajo líder en México. Filtra por 'Home Office' para ver vacantes remotas recientes.",
+      url: `https://www.occ.com.mx/empleos/de-${esPed ? "capacitacion-instructor" : "paralegal-asistente-juridico"}/?modality=3&sort=date`,
       salario: "Ver en plataforma",
       relevancia: "Alta"
     },
     {
-      titulo: "Asistente Jurídico Bilingüe - Remoto",
-      empresa: "Buscar en Computrabajo",
+      titulo: "Asistente Legal Bilingüe - Remoto",
+      empresa: "Computrabajo México",
       plataforma: "Computrabajo",
       modalidad: "Home Office",
       ubicacion: "México / LATAM",
-      descripcion: "Búsqueda en Computrabajo de puestos jurídicos bilingües en modalidad remota.",
-      url: `https://www.computrabajo.com.mx/trabajo-de-asistente-juridico-bilingue?modality=remote`,
+      descripcion: "Bolsa de empleo LATAM con filtro de teletrabajo. Resultados en México y resto de la región.",
+      url: `https://www.computrabajo.com.mx/trabajo-de-${esPed ? "instructor-capacitacion" : "asistente-juridico-bilingue"}`,
       salario: "Ver en plataforma",
       relevancia: "Media"
     },
     {
-      titulo: "Remote Legal Jobs - Bilingual Spanish",
-      empresa: "Buscar en FlexJobs",
-      plataforma: "FlexJobs",
-      modalidad: "Remoto",
-      ubicacion: "Worldwide",
-      descripcion: "FlexJobs especializado en trabajo remoto y flexible para profesionales legales bilingües.",
-      url: `https://www.flexjobs.com/jobs/paralegal-bilingual-spanish?remote=true`,
-      salario: "Ver en plataforma",
-      relevancia: "Alta"
-    },
-    {
-      titulo: "Paralegal - Propiedad Intelectual Remoto",
-      empresa: "Buscar en Jobicy",
+      titulo: "Remote Legal Jobs - Bilingual",
+      empresa: "Jobicy",
       plataforma: "Jobicy",
       modalidad: "Remoto",
       ubicacion: "Worldwide",
-      descripcion: "Vacantes globales en Jobicy para paralegal en propiedad intelectual y derecho internacional.",
-      url: `https://jobicy.com/?s=paralegal+bilingual+legal`,
+      descripcion: "Jobicy agrega vacantes remotas globales. Búsqueda directa para perfiles legales bilingües.",
+      url: `https://jobicy.com/?s=${termino.replace(/\+/g, "+")}`,
+      salario: "Ver en plataforma",
+      relevancia: "Media"
+    },
+    {
+      titulo: "Flexible Remote Legal Positions",
+      empresa: "FlexJobs",
+      plataforma: "FlexJobs",
+      modalidad: "Remoto",
+      ubicacion: "Worldwide",
+      descripcion: "Especializado en trabajo flexible y remoto. Requiere cuenta gratuita para ver detalles.",
+      url: `https://www.flexjobs.com/search?search=${termino}&location=remote`,
       salario: "Ver en plataforma",
       relevancia: "Media"
     }
   ];
 
-  // Filtrar por prompt si contiene palabras clave específicas
-  let filtradas = vacantes;
-  if (prompt.includes("propiedad intelectual") || prompt.includes("patentes")) {
-    filtradas = vacantes.map(v => ({
-      ...v,
-      url: v.plataforma === "LinkedIn" 
-        ? "https://www.linkedin.com/jobs/search/?keywords=paralegal+intellectual+property+bilingual+remote&f_WT=2"
-        : v.plataforma === "Indeed"
-        ? "https://www.indeed.com/jobs?q=paralegal+intellectual+property+bilingual&l=Remote&sort=date"
-        : v.url
-    }));
-  } else if (prompt.includes("México") || prompt.includes("home office")) {
-    filtradas = vacantes.filter(v => ["OCC", "Computrabajo", "LinkedIn", "Indeed"].includes(v.plataforma));
-  } else if (prompt.includes("pedagog") || prompt.includes("capacitación")) {
-    filtradas = vacantes.map(v => ({
-      ...v,
-      titulo: v.plataforma === "LinkedIn" ? "Instructional Designer / Capacitación Remoto" : v.titulo,
-      url: v.plataforma === "LinkedIn"
-        ? "https://www.linkedin.com/jobs/search/?keywords=instructional+designer+bilingual+spanish+remote&f_WT=2"
-        : v.plataforma === "Indeed"
-        ? "https://www.indeed.com/jobs?q=instructional+designer+bilingual+spanish&l=Remote&sort=date"
-        : v.url
-    }));
-  }
-
-  res.status(200).json({ vacantes: filtradas });
+  res.status(200).json({ vacantes });
 }
