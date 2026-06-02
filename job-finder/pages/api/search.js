@@ -24,42 +24,49 @@ Rocío Sánchez — Paralegal / Legal Assistant Bilingüe
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
-        max_tokens: 1500,
-        system: `Eres un experto en búsqueda de empleo legal y paralegal.
-Con base en el perfil de la candidata, genera vacantes REALES de plataformas como LinkedIn, Indeed, RemoteOK, WeWorkRemotely, Jobicy, OCC, Computrabajo, FlexJobs.
-Responde ÚNICAMENTE con JSON válido, sin markdown, sin backticks, sin texto extra.
-Formato exacto:
-{
-  "vacantes": [
-    {
-      "titulo": "título del puesto",
-      "empresa": "nombre de empresa",
-      "plataforma": "LinkedIn | Indeed | RemoteOK | WeWorkRemotely | Jobicy | OCC | FlexJobs | Computrabajo",
-      "modalidad": "Remoto",
-      "ubicacion": "ciudad, país o Worldwide",
-      "descripcion": "descripción breve de 2 líneas",
-      "url": "URL de búsqueda real en esa plataforma",
-      "salario": "rango aproximado o No especificado",
-      "relevancia": "Alta o Media"
-    }
-  ]
-}
-Genera entre 6 y 8 vacantes variadas en diferentes plataformas.`,
+        max_tokens: 2000,
+        system: `Eres un experto en búsqueda de empleo. Responde SOLO con un JSON válido sin backticks ni markdown.
+El JSON debe tener exactamente esta estructura:
+{"vacantes":[{"titulo":"string","empresa":"string","plataforma":"string","modalidad":"Remoto","ubicacion":"string","descripcion":"string","url":"string","salario":"string","relevancia":"Alta"}]}
+Genera 6 vacantes.`,
         messages: [{
           role: "user",
-          content: `Perfil:\n${ROCIO_PROFILE}\n\nBúsqueda: ${prompt}\n\nJSON únicamente.`
+          content: `Perfil: ${ROCIO_PROFILE}\n\nBúsqueda: ${prompt}\n\nResponde solo con el JSON.`
         }]
       })
     });
 
+    if (!response.ok) {
+      const errText = await response.text();
+      return res.status(500).json({ error: "API error: " + errText });
+    }
+
     const data = await response.json();
-    const text = data.content?.filter(b => b.type === "text").map(b => b.text).join("") || "";
-    const match = text.match(/\{[\s\S]*\}/);
-    if (!match) return res.status(500).json({ error: "Sin respuesta válida" });
+    console.log("API response:", JSON.stringify(data).substring(0, 500));
+
+    if (!data.content || data.content.length === 0) {
+      return res.status(500).json({ error: "Respuesta vacía de API", raw: data });
+    }
+
+    const text = data.content
+      .filter(b => b.type === "text")
+      .map(b => b.text)
+      .join("");
+
+    if (!text) {
+      return res.status(500).json({ error: "Sin texto en respuesta", content: data.content });
+    }
+
+    const clean = text.replace(/```json|```/gi, "").trim();
+    const match = clean.match(/\{[\s\S]*\}/);
+    if (!match) {
+      return res.status(500).json({ error: "No se encontró JSON", text: clean.substring(0, 200) });
+    }
 
     const parsed = JSON.parse(match[0]);
     res.status(200).json(parsed);
+
   } catch (err) {
-    res.status(500).json({ error: "Error al conectar con la API" });
+    res.status(500).json({ error: "Excepción: " + err.message });
   }
 }
