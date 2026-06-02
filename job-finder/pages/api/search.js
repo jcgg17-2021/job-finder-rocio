@@ -23,7 +23,7 @@ Rocío Sánchez — Paralegal / Legal Assistant Bilingüe
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+       model: "claude-sonnet-4-5",
         max_tokens: 2000,
         system: `Eres un experto en búsqueda de empleo. Responde SOLO con un JSON válido sin backticks ni markdown.
 El JSON debe tener exactamente esta estructura:
