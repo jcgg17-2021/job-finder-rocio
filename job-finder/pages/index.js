@@ -36,12 +36,12 @@ export default function Home() {
   const [tab, setTab] = useState("buscar");
   const [tipo, setTipo] = useState("todos");
   const [modalidad, setModalidad] = useState("todos");
+  const [empresa, setEmpresa] = useState("todos");
   const [vacantes, setVacantes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [favoritos, setFavoritos] = useState([]);
   const [tipoCambio, setTipoCambio] = useState(null);
-  const [empresa, setEmpresa] = useState("todos");
   const [buscado, setBuscado] = useState(false);
 
   useEffect(() => {
@@ -78,8 +78,9 @@ export default function Home() {
     setFavoritos(d.favoritos || []);
   };
 
-  const vacantesFiltradas = empresa === "todos" ? vacantes : vacantes.filter(v => v.empresa === empresa || v.plataforma === empresa);
+  const modalidadColor = { remoto: "#16A34A", presencial: "#D97706" };
   const modalidadBg = { remoto: "#F0FDF4", presencial: "#FEF3C7" };
+  const vacantesFiltradas = empresa === "todos" ? vacantes : vacantes.filter(v => v.empresa === empresa || v.plataforma === empresa);
 
   const FilterBtn = ({ active, onClick, children, activeColor = "#4F46E5" }) => (
     <button onClick={onClick} style={{
@@ -173,7 +174,7 @@ export default function Home() {
               {!loading && vacantesFiltradas.length > 0 && (
                 <div>
                   <p style={{ fontSize: 13, color: "#6B7280", marginBottom: 16 }}>
-                    <strong style={{ color: "#1a1a2e" }}>{vacantesFiltradas.length} plataformas</strong> encontradas
+                    <strong style={{ color: "#1a1a2e" }}>{vacantesFiltradas.length} resultados</strong> encontrados
                   </p>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(310px, 1fr))", gap: 14 }}>
                     {vacantesFiltradas.map(job => (
@@ -216,7 +217,7 @@ export default function Home() {
                 </div>
               )}
 
-              {!loading && !error && buscado && vacantes.length === 0 && (
+              {!loading && !error && buscado && vacantesFiltradas.length === 0 && (
                 <div style={{ textAlign: "center", padding: "60px 0", color: "#9CA3AF" }}>
                   <div style={{ fontSize: 40, marginBottom: 12 }}>🔍</div>
                   <p style={{ fontSize: 14, color: "#6B7280" }}>No hay vacantes para esa combinación. Prueba con otros filtros.</p>
