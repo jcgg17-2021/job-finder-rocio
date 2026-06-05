@@ -82,7 +82,7 @@ export default function Home() {
   const modalidadBg = { remoto: "#F0FDF4", presencial: "#FEF3C7" };
   const vacantesFiltradas = empresa === "todos" ? vacantes : vacantes.filter(v => v.empresa === empresa || v.plataforma === empresa);
 
-  const FilterBtn = ({ active, onClick, children, activeColor = "#4F46E5" }) => (
+  const FilterBtn = ({ active, onClick, children, activeColor = "#7C3AED" }) => (
     <button onClick={onClick} style={{
       padding: "7px 14px", fontFamily: "'Poppins', sans-serif", fontSize: 12, fontWeight: 600,
       cursor: "pointer", transition: "all 0.15s",
@@ -101,7 +101,7 @@ export default function Home() {
       <div style={{ fontFamily: "'Poppins', sans-serif", minHeight: "100vh", background: "#F7F8FC" }}>
 
         {/* Mensaje de amor */}
-        <div style={{ background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", padding: "18px 28px", textAlign: "center" }}>
+        <div style={{ background: "linear-gradient(135deg, #7C3AED 0%, #5B21B6 100%)", padding: "18px 28px", textAlign: "center" }}>
           <p style={{ margin: 0, fontSize: 13, color: "#fff", lineHeight: 1.8, maxWidth: 700, marginLeft: "auto", marginRight: "auto" }}>
             💜 <em>Esto lo hice con todo el amor del mundo para ti, Rocío. Cada búsqueda, cada plataforma, cada detalle fue pensado con la esperanza de que encuentres algo que te haga feliz y que esté a la altura de todo lo que eres y de todo lo que vales. Que este pequeño esfuerzo sea el primer paso hacia algo grande para ti.</em> 💜
           </p>
@@ -111,14 +111,14 @@ export default function Home() {
         <div style={{ background: "#fff", borderBottom: "2px solid #E8EAED", padding: "14px 28px" }}>
           <div style={{ maxWidth: 1100, margin: "0 auto" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
-              <div style={{ width: 38, height: 38, background: "#4F46E5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>🔎</div>
+              <div style={{ width: 38, height: 38, background: "#7C3AED", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>🔎</div>
               <div style={{ flex: 1 }}>
                 <h1 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Job Finder · Rocío Sánchez</h1>
                 <p style={{ margin: 0, fontSize: 11, color: "#6B7280" }}>Paralegal · Asistente Bilingüe · English Teacher · Intérprete · Atención a Clientes</p>
               </div>
               <div style={{ display: "flex", gap: 4 }}>
-                <button onClick={() => setTab("buscar")} style={{ padding: "8px 16px", fontFamily: "'Poppins', sans-serif", fontSize: 12, fontWeight: 600, cursor: "pointer", background: tab === "buscar" ? "#4F46E5" : "transparent", color: tab === "buscar" ? "#fff" : "#6B7280", border: tab === "buscar" ? "2px solid #4F46E5" : "2px solid transparent" }}>🔍 Buscar</button>
-                <button onClick={() => setTab("favoritos")} style={{ padding: "8px 16px", fontFamily: "'Poppins', sans-serif", fontSize: 12, fontWeight: 600, cursor: "pointer", background: tab === "favoritos" ? "#4F46E5" : "transparent", color: tab === "favoritos" ? "#fff" : "#6B7280", border: tab === "favoritos" ? "2px solid #4F46E5" : "2px solid transparent" }}>⭐ Favoritos {favoritos.length > 0 ? `(${favoritos.length})` : ""}</button>
+                <button onClick={() => setTab("buscar")} style={{ padding: "8px 16px", fontFamily: "'Poppins', sans-serif", fontSize: 12, fontWeight: 600, cursor: "pointer", background: tab === "buscar" ? "#7C3AED" : "transparent", color: tab === "buscar" ? "#fff" : "#6B7280", border: tab === "buscar" ? "2px solid #7C3AED" : "2px solid transparent" }}>🔍 Buscar</button>
+                <button onClick={() => setTab("favoritos")} style={{ padding: "8px 16px", fontFamily: "'Poppins', sans-serif", fontSize: 12, fontWeight: 600, cursor: "pointer", background: tab === "favoritos" ? "#7C3AED" : "transparent", color: tab === "favoritos" ? "#fff" : "#6B7280", border: tab === "favoritos" ? "2px solid #7C3AED" : "2px solid transparent" }}>⭐ Favoritos {favoritos.length > 0 ? `(${favoritos.length})` : ""}</button>
               </div>
             </div>
 
@@ -133,17 +133,17 @@ export default function Home() {
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
                   <span style={{ fontSize: 11, color: "#9CA3AF", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", minWidth: 80 }}>Modalidad:</span>
                   {MODALIDADES.map(m => (
-                    <FilterBtn key={m.key} active={modalidad === m.key} onClick={() => setModalidad(m.key)} activeColor={m.key === "presencial" ? "#D97706" : "#4F46E5"}>{m.label}</FilterBtn>
+                    <FilterBtn key={m.key} active={modalidad === m.key} onClick={() => setModalidad(m.key)} activeColor={m.key === "presencial" ? "#D97706" : "#7C3AED"}>{m.label}</FilterBtn>
                   ))}
                 </div>
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
                   <span style={{ fontSize: 11, color: "#9CA3AF", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", minWidth: 80 }}>Empresa:</span>
                   {EMPRESAS.map(e => (
-                    <FilterBtn key={e.key} active={empresa === e.key} onClick={() => setEmpresa(e.key)} activeColor="#6D28D9">{e.label}</FilterBtn>
+                    <FilterBtn key={e.key} active={empresa === e.key} onClick={() => setEmpresa(e.key)} activeColor="#5B21B6">{e.label}</FilterBtn>
                   ))}
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <button onClick={() => search()} disabled={loading} style={{ padding: "10px 28px", background: "#4F46E5", color: "#fff", border: "none", fontFamily: "'Poppins', sans-serif", fontSize: 13, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1 }}>
+                  <button onClick={() => search()} disabled={loading} style={{ padding: "10px 28px", background: "#7C3AED", color: "#fff", border: "none", fontFamily: "'Poppins', sans-serif", fontSize: 13, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1 }}>
                     {loading ? "⏳ Buscando..." : "Buscar →"}
                   </button>
                   {tipoCambio && (
@@ -179,7 +179,7 @@ export default function Home() {
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(310px, 1fr))", gap: 14 }}>
                     {vacantesFiltradas.map(job => (
                       <div key={job.id} style={{ background: "#fff", border: "2px solid #E5E7EB", padding: "16px 18px", display: "flex", flexDirection: "column", gap: 10, transition: "border-color 0.15s" }}
-                        onMouseEnter={e => e.currentTarget.style.borderColor = "#4F46E5"}
+                        onMouseEnter={e => e.currentTarget.style.borderColor = "#7C3AED"}
                         onMouseLeave={e => e.currentTarget.style.borderColor = "#E5E7EB"}>
 
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -195,7 +195,7 @@ export default function Home() {
 
                         <div>
                           <h3 style={{ margin: "0 0 2px", fontSize: 14, fontWeight: 700, color: "#1a1a2e" }}>{job.titulo}</h3>
-                          <p style={{ margin: "0 0 2px", fontSize: 12, color: "#4F46E5", fontWeight: 600 }}>{job.empresa}</p>
+                          <p style={{ margin: "0 0 2px", fontSize: 12, color: "#7C3AED", fontWeight: 600 }}>{job.empresa}</p>
                           <p style={{ margin: 0, fontSize: 11, color: "#9CA3AF" }}>📍 {job.ubicacion}</p>
                         </div>
 
@@ -208,7 +208,7 @@ export default function Home() {
                           <p style={{ margin: 0, fontSize: 12, color: "#6B7280", fontWeight: 600 }}>💼 Por proyecto</p>
                         )}
 
-                        <a href={job.url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", padding: "8px 16px", background: "#4F46E5", color: "#fff", textDecoration: "none", fontSize: 11, fontWeight: 700, fontFamily: "'Poppins', sans-serif", marginTop: "auto" }}>
+                        <a href={job.url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", padding: "8px 16px", background: "#7C3AED", color: "#fff", textDecoration: "none", fontSize: 11, fontWeight: 700, fontFamily: "'Poppins', sans-serif", marginTop: "auto" }}>
                           Ver vacantes →
                         </a>
                       </div>
@@ -248,11 +248,11 @@ export default function Home() {
                     ? vacantes.filter(v => favoritos.includes(v.id)).map(job => (
                       <div key={job.id} style={{ background: "#fff", border: "2px solid #FDE68A", padding: "16px 18px" }}>
                         <h3 style={{ margin: "0 0 3px", fontSize: 13, fontWeight: 700 }}>{job.titulo}</h3>
-                        <p style={{ margin: "0 0 4px", fontSize: 12, color: "#4F46E5", fontWeight: 600 }}>{job.empresa}</p>
+                        <p style={{ margin: "0 0 4px", fontSize: 12, color: "#7C3AED", fontWeight: 600 }}>{job.empresa}</p>
                         <p style={{ margin: "0 0 10px", fontSize: 11, color: "#9CA3AF" }}>📍 {job.ubicacion}</p>
                         <div style={{ display: "flex", gap: 6 }}>
                           <a href={job.url} target="_blank" rel="noopener noreferrer"
-                            style={{ padding: "6px 14px", background: "#4F46E5", color: "#fff", textDecoration: "none", fontSize: 11, fontWeight: 700, fontFamily: "'Poppins', sans-serif" }}>Ver →</a>
+                            style={{ padding: "6px 14px", background: "#7C3AED", color: "#fff", textDecoration: "none", fontSize: 11, fontWeight: 700, fontFamily: "'Poppins', sans-serif" }}>Ver →</a>
                           <button onClick={() => toggleFavorito(job.id)}
                             style={{ padding: "6px 10px", background: "#fff", border: "2px solid #FCA5A5", fontSize: 11, cursor: "pointer", fontFamily: "'Poppins', sans-serif", color: "#DC2626", fontWeight: 600 }}>Quitar ★</button>
                         </div>
