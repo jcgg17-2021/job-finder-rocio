@@ -1,274 +1,237 @@
-import { useState, useEffect } from "react";
-import Head from "next/head";
+import { Redis } from "@upstash/redis";
 
-const EMPRESAS = [
-  { key: "todos", label: "🏢 Todas" },
-  { key: "Google Jobs", label: "🔍 Google Jobs" },
-  { key: "Indeed", label: "🟦 Indeed" },
-  { key: "OCC Mundial", label: "🟠 OCC" },
-  { key: "Computrabajo", label: "🟡 Computrabajo" },
-  { key: "LinkedIn", label: "🔵 LinkedIn" },
-  { key: "ZipRecruiter", label: "⚡ ZipRecruiter" },
-  { key: "Glassdoor", label: "🟢 Glassdoor" },
-  { key: "RemoteOK", label: "🌐 RemoteOK" },
-  { key: "Upwork", label: "🟤 Upwork" },
-  { key: "Workana", label: "🟣 Workana" },
-  { key: "Hireline", label: "💎 Hireline" },
-  { key: "WeWorkRemotely", label: "🏠 WeWorkRemotely" },
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN,
+});
+
+const getUSDtoMXN = async () => {
+  try {
+    const res = await fetch("https://api.exchangerate-api.com/v4/latest/USD");
+    const data = await res.json();
+    return data.rates?.MXN || 17.5;
+  } catch { return 17.5; }
+};
+
+const convertirSalario = (salario, tc) => {
+  if (!salario || salario === "Ver en plataforma" || salario === "Por proyecto") return salario;
+  const hrMatch = salario.match(/\$([0-9,]+)-([0-9,]+)\/hr/);
+  if (hrMatch) {
+    const min = Math.round(parseFloat(hrMatch[1].replace(",", "")) * 160 * tc / 1000) * 1000;
+    const max = Math.round(parseFloat(hrMatch[2].replace(",", "")) * 160 * tc / 1000) * 1000;
+    return `$${min.toLocaleString("es-MX")} - $${max.toLocaleString("es-MX")} MXN/mes`;
+  }
+  const yrMatch = salario.match(/\$([0-9,]+)-([0-9,]+)\/año/);
+  if (yrMatch) {
+    const min = Math.round(parseFloat(yrMatch[1].replace(",", "")) * tc / 12 / 1000) * 1000;
+    const max = Math.round(parseFloat(yrMatch[2].replace(",", "")) * tc / 12 / 1000) * 1000;
+    return `$${min.toLocaleString("es-MX")} - $${max.toLocaleString("es-MX")} MXN/mes`;
+  }
+  return salario;
+};
+
+// URL helpers (solo para remoto)
+const gjR = (q) => `https://www.google.com/search?q=${encodeURIComponent(q + " remoto")}&ibp=htl;jobs&htichips=employment_type:TELECOMMUTE,date_posted:week`;
+const indeedR = (q) => `https://www.indeed.com/jobs?q=${encodeURIComponent(q)}&sc=0kf%3Aattr(DSQF7)%3B&sort=date`;
+const occR = (q) => `https://www.occ.com.mx/empleos/de-${encodeURIComponent(q.replace(/ /g,"-"))}/?modality=3`;
+const ctR = (q) => `https://mx.computrabajo.com/trabajo-de-${encodeURIComponent(q.replace(/ /g,"-"))}?jt=4`;
+const liR = (q) => `https://www.linkedin.com/jobs/search/?keywords=${encodeURIComponent(q)}&f_WT=2&sortBy=DD`;
+
+
+
+const PRESENCIALES = [
+  { id: "p1000", tipo: "paralegal", modalidad: "presencial", titulo: "Paralegal / Legal · Google Jobs", empresa: "Google Jobs", plataforma: "Google Jobs", ubicacion: "Presencial · Zona Oriente CDMX / EDOMEX", descripcion: "Búsqueda en Google Jobs para Paralegal / Legal. Al abrir filtra por distancia y fecha de publicación.", url: "https://www.google.com/search?q=paralegal%20bilingue&ibp=htl;jobs&htichips=date_posted:week", salario: "Ver en plataforma" },
+  { id: "p1001", tipo: "asistente", modalidad: "presencial", titulo: "Asistente Bilingüe · Google Jobs", empresa: "Google Jobs", plataforma: "Google Jobs", ubicacion: "Presencial · Zona Oriente CDMX / EDOMEX", descripcion: "Búsqueda en Google Jobs para Asistente Bilingüe. Al abrir filtra por distancia y fecha de publicación.", url: "https://www.google.com/search?q=asistente%20bilingue&ibp=htl;jobs&htichips=date_posted:week", salario: "Ver en plataforma" },
+  { id: "p1002", tipo: "teacher", modalidad: "presencial", titulo: "English Teacher · Google Jobs", empresa: "Google Jobs", plataforma: "Google Jobs", ubicacion: "Presencial · Zona Oriente CDMX / EDOMEX", descripcion: "Búsqueda en Google Jobs para English Teacher. Al abrir filtra por distancia y fecha de publicación.", url: "https://www.google.com/search?q=maestra%20ingles&ibp=htl;jobs&htichips=date_posted:week", salario: "Ver en plataforma" },
+  { id: "p1003", tipo: "interprete", modalidad: "presencial", titulo: "Intérprete / Traductora · Google Jobs", empresa: "Google Jobs", plataforma: "Google Jobs", ubicacion: "Presencial · Zona Oriente CDMX / EDOMEX", descripcion: "Búsqueda en Google Jobs para Intérprete / Traductora. Al abrir filtra por distancia y fecha de publicación.", url: "https://www.google.com/search?q=interprete%20bilingue&ibp=htl;jobs&htichips=date_posted:week", salario: "Ver en plataforma" },
+  { id: "p1004", tipo: "atencion", modalidad: "presencial", titulo: "Atención Clientes · Google Jobs", empresa: "Google Jobs", plataforma: "Google Jobs", ubicacion: "Presencial · Zona Oriente CDMX / EDOMEX", descripcion: "Búsqueda en Google Jobs para Atención Clientes. Al abrir filtra por distancia y fecha de publicación.", url: "https://www.google.com/search?q=ejecutivo%20bilingue&ibp=htl;jobs&htichips=date_posted:week", salario: "Ver en plataforma" },
+  { id: "p1005", tipo: "paralegal", modalidad: "presencial", titulo: "Paralegal / Legal · Iztapalapa · Indeed", empresa: "Indeed", plataforma: "Indeed", ubicacion: "Presencial · Iztapalapa, CDMX", descripcion: "Indeed con ubicación en Iztapalapa. Ordena por fecha para ver las más recientes. Verifica ubicación antes de postularte.", url: "https://www.indeed.com/jobs?q=paralegal%20bilingue&l=Iztapalapa&sort=date", salario: "Ver en plataforma" },
+  { id: "p1006", tipo: "paralegal", modalidad: "presencial", titulo: "Paralegal / Legal · Iztapalapa · OCC", empresa: "OCC Mundial", plataforma: "OCC", ubicacion: "Presencial · Iztapalapa, CDMX", descripcion: "OCC con ubicación en Iztapalapa. Confirma que la ubicación sea correcta antes de aplicar.", url: "https://www.occ.com.mx/empleos/de-paralegal/?location=Iztapalapa", salario: "Ver en plataforma" },
+  { id: "p1007", tipo: "paralegal", modalidad: "presencial", titulo: "Paralegal / Legal · Iztapalapa · Computrabajo", empresa: "Computrabajo", plataforma: "Computrabajo", ubicacion: "Presencial · Iztapalapa, CDMX", descripcion: "Computrabajo con ubicación en Iztapalapa. Verifica ubicación exacta antes de postularte.", url: "https://mx.computrabajo.com/trabajo-de-paralegal-bilingue?l=Iztapalapa", salario: "Ver en plataforma" },
+  { id: "p1008", tipo: "paralegal", modalidad: "presencial", titulo: "Paralegal / Legal · Iztapalapa · LinkedIn", empresa: "LinkedIn", plataforma: "LinkedIn", ubicacion: "Presencial · Iztapalapa, CDMX", descripcion: "LinkedIn con ubicación en Iztapalapa, publicadas esta semana. Verifica ubicación antes de postularte.", url: "https://www.linkedin.com/jobs/search/?keywords=paralegal%20bilingual&location=Iztapalapa%2C%20Mexico&f_TPR=r604800", salario: "Ver en plataforma" },
+  { id: "p1009", tipo: "paralegal", modalidad: "presencial", titulo: "Paralegal / Legal · Nezahualcóyotl · Indeed", empresa: "Indeed", plataforma: "Indeed", ubicacion: "Presencial · Nezahualcóyotl, EDOMEX", descripcion: "Indeed con ubicación en Nezahualcóyotl. Ordena por fecha para ver las más recientes. Verifica ubicación antes de postularte.", url: "https://www.indeed.com/jobs?q=paralegal%20bilingue&l=Nezahualc%C3%B3yotl&sort=date", salario: "Ver en plataforma" },
+  { id: "p1010", tipo: "paralegal", modalidad: "presencial", titulo: "Paralegal / Legal · Nezahualcóyotl · OCC", empresa: "OCC Mundial", plataforma: "OCC", ubicacion: "Presencial · Nezahualcóyotl, EDOMEX", descripcion: "OCC con ubicación en Nezahualcóyotl. Confirma que la ubicación sea correcta antes de aplicar.", url: "https://www.occ.com.mx/empleos/de-paralegal/?location=Nezahualc%C3%B3yotl", salario: "Ver en plataforma" },
+  { id: "p1011", tipo: "paralegal", modalidad: "presencial", titulo: "Paralegal / Legal · Nezahualcóyotl · Computrabajo", empresa: "Computrabajo", plataforma: "Computrabajo", ubicacion: "Presencial · Nezahualcóyotl, EDOMEX", descripcion: "Computrabajo con ubicación en Nezahualcóyotl. Verifica ubicación exacta antes de postularte.", url: "https://mx.computrabajo.com/trabajo-de-paralegal-bilingue?l=Nezahualc%C3%B3yotl", salario: "Ver en plataforma" },
+  { id: "p1012", tipo: "paralegal", modalidad: "presencial", titulo: "Paralegal / Legal · Nezahualcóyotl · LinkedIn", empresa: "LinkedIn", plataforma: "LinkedIn", ubicacion: "Presencial · Nezahualcóyotl, EDOMEX", descripcion: "LinkedIn con ubicación en Nezahualcóyotl, publicadas esta semana. Verifica ubicación antes de postularte.", url: "https://www.linkedin.com/jobs/search/?keywords=paralegal%20bilingual&location=Nezahualc%C3%B3yotl%2C%20Mexico&f_TPR=r604800", salario: "Ver en plataforma" },
+  { id: "p1013", tipo: "paralegal", modalidad: "presencial", titulo: "Paralegal / Legal · Los Reyes La Paz · Indeed", empresa: "Indeed", plataforma: "Indeed", ubicacion: "Presencial · Los Reyes La Paz, EDOMEX", descripcion: "Indeed con ubicación en Los Reyes La Paz. Ordena por fecha para ver las más recientes. Verifica ubicación antes de postularte.", url: "https://www.indeed.com/jobs?q=paralegal%20bilingue&l=Los%20Reyes%20La%20Paz&sort=date", salario: "Ver en plataforma" },
+  { id: "p1014", tipo: "paralegal", modalidad: "presencial", titulo: "Paralegal / Legal · Los Reyes La Paz · OCC", empresa: "OCC Mundial", plataforma: "OCC", ubicacion: "Presencial · Los Reyes La Paz, EDOMEX", descripcion: "OCC con ubicación en Los Reyes La Paz. Confirma que la ubicación sea correcta antes de aplicar.", url: "https://www.occ.com.mx/empleos/de-paralegal/?location=Los%20Reyes%20La%20Paz", salario: "Ver en plataforma" },
+  { id: "p1015", tipo: "paralegal", modalidad: "presencial", titulo: "Paralegal / Legal · Los Reyes La Paz · Computrabajo", empresa: "Computrabajo", plataforma: "Computrabajo", ubicacion: "Presencial · Los Reyes La Paz, EDOMEX", descripcion: "Computrabajo con ubicación en Los Reyes La Paz. Verifica ubicación exacta antes de postularte.", url: "https://mx.computrabajo.com/trabajo-de-paralegal-bilingue?l=Los%20Reyes%20La%20Paz", salario: "Ver en plataforma" },
+  { id: "p1016", tipo: "paralegal", modalidad: "presencial", titulo: "Paralegal / Legal · Los Reyes La Paz · LinkedIn", empresa: "LinkedIn", plataforma: "LinkedIn", ubicacion: "Presencial · Los Reyes La Paz, EDOMEX", descripcion: "LinkedIn con ubicación en Los Reyes La Paz, publicadas esta semana. Verifica ubicación antes de postularte.", url: "https://www.linkedin.com/jobs/search/?keywords=paralegal%20bilingual&location=Los%20Reyes%20La%20Paz%2C%20Mexico&f_TPR=r604800", salario: "Ver en plataforma" },
+  { id: "p1017", tipo: "paralegal", modalidad: "presencial", titulo: "Paralegal / Legal · Texcoco · Indeed", empresa: "Indeed", plataforma: "Indeed", ubicacion: "Presencial · Texcoco, EDOMEX", descripcion: "Indeed con ubicación en Texcoco. Ordena por fecha para ver las más recientes. Verifica ubicación antes de postularte.", url: "https://www.indeed.com/jobs?q=paralegal%20bilingue&l=Texcoco&sort=date", salario: "Ver en plataforma" },
+  { id: "p1018", tipo: "paralegal", modalidad: "presencial", titulo: "Paralegal / Legal · Texcoco · OCC", empresa: "OCC Mundial", plataforma: "OCC", ubicacion: "Presencial · Texcoco, EDOMEX", descripcion: "OCC con ubicación en Texcoco. Confirma que la ubicación sea correcta antes de aplicar.", url: "https://www.occ.com.mx/empleos/de-paralegal/?location=Texcoco", salario: "Ver en plataforma" },
+  { id: "p1019", tipo: "paralegal", modalidad: "presencial", titulo: "Paralegal / Legal · Texcoco · Computrabajo", empresa: "Computrabajo", plataforma: "Computrabajo", ubicacion: "Presencial · Texcoco, EDOMEX", descripcion: "Computrabajo con ubicación en Texcoco. Verifica ubicación exacta antes de postularte.", url: "https://mx.computrabajo.com/trabajo-de-paralegal-bilingue?l=Texcoco", salario: "Ver en plataforma" },
+  { id: "p1020", tipo: "paralegal", modalidad: "presencial", titulo: "Paralegal / Legal · Texcoco · LinkedIn", empresa: "LinkedIn", plataforma: "LinkedIn", ubicacion: "Presencial · Texcoco, EDOMEX", descripcion: "LinkedIn con ubicación en Texcoco, publicadas esta semana. Verifica ubicación antes de postularte.", url: "https://www.linkedin.com/jobs/search/?keywords=paralegal%20bilingual&location=Texcoco%2C%20Mexico&f_TPR=r604800", salario: "Ver en plataforma" },
+  { id: "p1021", tipo: "paralegal", modalidad: "presencial", titulo: "Paralegal / Legal · Chimalhuacán · Indeed", empresa: "Indeed", plataforma: "Indeed", ubicacion: "Presencial · Chimalhuacán, EDOMEX", descripcion: "Indeed con ubicación en Chimalhuacán. Ordena por fecha para ver las más recientes. Verifica ubicación antes de postularte.", url: "https://www.indeed.com/jobs?q=paralegal%20bilingue&l=Chimalhuac%C3%A1n&sort=date", salario: "Ver en plataforma" },
+  { id: "p1022", tipo: "paralegal", modalidad: "presencial", titulo: "Paralegal / Legal · Chimalhuacán · OCC", empresa: "OCC Mundial", plataforma: "OCC", ubicacion: "Presencial · Chimalhuacán, EDOMEX", descripcion: "OCC con ubicación en Chimalhuacán. Confirma que la ubicación sea correcta antes de aplicar.", url: "https://www.occ.com.mx/empleos/de-paralegal/?location=Chimalhuac%C3%A1n", salario: "Ver en plataforma" },
+  { id: "p1023", tipo: "paralegal", modalidad: "presencial", titulo: "Paralegal / Legal · Chimalhuacán · Computrabajo", empresa: "Computrabajo", plataforma: "Computrabajo", ubicacion: "Presencial · Chimalhuacán, EDOMEX", descripcion: "Computrabajo con ubicación en Chimalhuacán. Verifica ubicación exacta antes de postularte.", url: "https://mx.computrabajo.com/trabajo-de-paralegal-bilingue?l=Chimalhuac%C3%A1n", salario: "Ver en plataforma" },
+  { id: "p1024", tipo: "paralegal", modalidad: "presencial", titulo: "Paralegal / Legal · Chimalhuacán · LinkedIn", empresa: "LinkedIn", plataforma: "LinkedIn", ubicacion: "Presencial · Chimalhuacán, EDOMEX", descripcion: "LinkedIn con ubicación en Chimalhuacán, publicadas esta semana. Verifica ubicación antes de postularte.", url: "https://www.linkedin.com/jobs/search/?keywords=paralegal%20bilingual&location=Chimalhuac%C3%A1n%2C%20Mexico&f_TPR=r604800", salario: "Ver en plataforma" },
+  { id: "p1025", tipo: "asistente", modalidad: "presencial", titulo: "Asistente Bilingüe · Iztapalapa · Indeed", empresa: "Indeed", plataforma: "Indeed", ubicacion: "Presencial · Iztapalapa, CDMX", descripcion: "Indeed con ubicación en Iztapalapa. Ordena por fecha para ver las más recientes. Verifica ubicación antes de postularte.", url: "https://www.indeed.com/jobs?q=asistente%20bilingue%20ingles&l=Iztapalapa&sort=date", salario: "Ver en plataforma" },
+  { id: "p1026", tipo: "asistente", modalidad: "presencial", titulo: "Asistente Bilingüe · Iztapalapa · OCC", empresa: "OCC Mundial", plataforma: "OCC", ubicacion: "Presencial · Iztapalapa, CDMX", descripcion: "OCC con ubicación en Iztapalapa. Confirma que la ubicación sea correcta antes de aplicar.", url: "https://www.occ.com.mx/empleos/de-asistente-bilingue/?location=Iztapalapa", salario: "Ver en plataforma" },
+  { id: "p1027", tipo: "asistente", modalidad: "presencial", titulo: "Asistente Bilingüe · Iztapalapa · Computrabajo", empresa: "Computrabajo", plataforma: "Computrabajo", ubicacion: "Presencial · Iztapalapa, CDMX", descripcion: "Computrabajo con ubicación en Iztapalapa. Verifica ubicación exacta antes de postularte.", url: "https://mx.computrabajo.com/trabajo-de-asistente-bilingue?l=Iztapalapa", salario: "Ver en plataforma" },
+  { id: "p1028", tipo: "asistente", modalidad: "presencial", titulo: "Asistente Bilingüe · Iztapalapa · LinkedIn", empresa: "LinkedIn", plataforma: "LinkedIn", ubicacion: "Presencial · Iztapalapa, CDMX", descripcion: "LinkedIn con ubicación en Iztapalapa, publicadas esta semana. Verifica ubicación antes de postularte.", url: "https://www.linkedin.com/jobs/search/?keywords=asistente%20bilingual&location=Iztapalapa%2C%20Mexico&f_TPR=r604800", salario: "Ver en plataforma" },
+  { id: "p1029", tipo: "asistente", modalidad: "presencial", titulo: "Asistente Bilingüe · Nezahualcóyotl · Indeed", empresa: "Indeed", plataforma: "Indeed", ubicacion: "Presencial · Nezahualcóyotl, EDOMEX", descripcion: "Indeed con ubicación en Nezahualcóyotl. Ordena por fecha para ver las más recientes. Verifica ubicación antes de postularte.", url: "https://www.indeed.com/jobs?q=asistente%20bilingue%20ingles&l=Nezahualc%C3%B3yotl&sort=date", salario: "Ver en plataforma" },
+  { id: "p1030", tipo: "asistente", modalidad: "presencial", titulo: "Asistente Bilingüe · Nezahualcóyotl · OCC", empresa: "OCC Mundial", plataforma: "OCC", ubicacion: "Presencial · Nezahualcóyotl, EDOMEX", descripcion: "OCC con ubicación en Nezahualcóyotl. Confirma que la ubicación sea correcta antes de aplicar.", url: "https://www.occ.com.mx/empleos/de-asistente-bilingue/?location=Nezahualc%C3%B3yotl", salario: "Ver en plataforma" },
+  { id: "p1031", tipo: "asistente", modalidad: "presencial", titulo: "Asistente Bilingüe · Nezahualcóyotl · Computrabajo", empresa: "Computrabajo", plataforma: "Computrabajo", ubicacion: "Presencial · Nezahualcóyotl, EDOMEX", descripcion: "Computrabajo con ubicación en Nezahualcóyotl. Verifica ubicación exacta antes de postularte.", url: "https://mx.computrabajo.com/trabajo-de-asistente-bilingue?l=Nezahualc%C3%B3yotl", salario: "Ver en plataforma" },
+  { id: "p1032", tipo: "asistente", modalidad: "presencial", titulo: "Asistente Bilingüe · Nezahualcóyotl · LinkedIn", empresa: "LinkedIn", plataforma: "LinkedIn", ubicacion: "Presencial · Nezahualcóyotl, EDOMEX", descripcion: "LinkedIn con ubicación en Nezahualcóyotl, publicadas esta semana. Verifica ubicación antes de postularte.", url: "https://www.linkedin.com/jobs/search/?keywords=asistente%20bilingual&location=Nezahualc%C3%B3yotl%2C%20Mexico&f_TPR=r604800", salario: "Ver en plataforma" },
+  { id: "p1033", tipo: "asistente", modalidad: "presencial", titulo: "Asistente Bilingüe · Los Reyes La Paz · Indeed", empresa: "Indeed", plataforma: "Indeed", ubicacion: "Presencial · Los Reyes La Paz, EDOMEX", descripcion: "Indeed con ubicación en Los Reyes La Paz. Ordena por fecha para ver las más recientes. Verifica ubicación antes de postularte.", url: "https://www.indeed.com/jobs?q=asistente%20bilingue%20ingles&l=Los%20Reyes%20La%20Paz&sort=date", salario: "Ver en plataforma" },
+  { id: "p1034", tipo: "asistente", modalidad: "presencial", titulo: "Asistente Bilingüe · Los Reyes La Paz · OCC", empresa: "OCC Mundial", plataforma: "OCC", ubicacion: "Presencial · Los Reyes La Paz, EDOMEX", descripcion: "OCC con ubicación en Los Reyes La Paz. Confirma que la ubicación sea correcta antes de aplicar.", url: "https://www.occ.com.mx/empleos/de-asistente-bilingue/?location=Los%20Reyes%20La%20Paz", salario: "Ver en plataforma" },
+  { id: "p1035", tipo: "asistente", modalidad: "presencial", titulo: "Asistente Bilingüe · Los Reyes La Paz · Computrabajo", empresa: "Computrabajo", plataforma: "Computrabajo", ubicacion: "Presencial · Los Reyes La Paz, EDOMEX", descripcion: "Computrabajo con ubicación en Los Reyes La Paz. Verifica ubicación exacta antes de postularte.", url: "https://mx.computrabajo.com/trabajo-de-asistente-bilingue?l=Los%20Reyes%20La%20Paz", salario: "Ver en plataforma" },
+  { id: "p1036", tipo: "asistente", modalidad: "presencial", titulo: "Asistente Bilingüe · Los Reyes La Paz · LinkedIn", empresa: "LinkedIn", plataforma: "LinkedIn", ubicacion: "Presencial · Los Reyes La Paz, EDOMEX", descripcion: "LinkedIn con ubicación en Los Reyes La Paz, publicadas esta semana. Verifica ubicación antes de postularte.", url: "https://www.linkedin.com/jobs/search/?keywords=asistente%20bilingual&location=Los%20Reyes%20La%20Paz%2C%20Mexico&f_TPR=r604800", salario: "Ver en plataforma" },
+  { id: "p1037", tipo: "asistente", modalidad: "presencial", titulo: "Asistente Bilingüe · Texcoco · Indeed", empresa: "Indeed", plataforma: "Indeed", ubicacion: "Presencial · Texcoco, EDOMEX", descripcion: "Indeed con ubicación en Texcoco. Ordena por fecha para ver las más recientes. Verifica ubicación antes de postularte.", url: "https://www.indeed.com/jobs?q=asistente%20bilingue%20ingles&l=Texcoco&sort=date", salario: "Ver en plataforma" },
+  { id: "p1038", tipo: "asistente", modalidad: "presencial", titulo: "Asistente Bilingüe · Texcoco · OCC", empresa: "OCC Mundial", plataforma: "OCC", ubicacion: "Presencial · Texcoco, EDOMEX", descripcion: "OCC con ubicación en Texcoco. Confirma que la ubicación sea correcta antes de aplicar.", url: "https://www.occ.com.mx/empleos/de-asistente-bilingue/?location=Texcoco", salario: "Ver en plataforma" },
+  { id: "p1039", tipo: "asistente", modalidad: "presencial", titulo: "Asistente Bilingüe · Texcoco · Computrabajo", empresa: "Computrabajo", plataforma: "Computrabajo", ubicacion: "Presencial · Texcoco, EDOMEX", descripcion: "Computrabajo con ubicación en Texcoco. Verifica ubicación exacta antes de postularte.", url: "https://mx.computrabajo.com/trabajo-de-asistente-bilingue?l=Texcoco", salario: "Ver en plataforma" },
+  { id: "p1040", tipo: "asistente", modalidad: "presencial", titulo: "Asistente Bilingüe · Texcoco · LinkedIn", empresa: "LinkedIn", plataforma: "LinkedIn", ubicacion: "Presencial · Texcoco, EDOMEX", descripcion: "LinkedIn con ubicación en Texcoco, publicadas esta semana. Verifica ubicación antes de postularte.", url: "https://www.linkedin.com/jobs/search/?keywords=asistente%20bilingual&location=Texcoco%2C%20Mexico&f_TPR=r604800", salario: "Ver en plataforma" },
+  { id: "p1041", tipo: "asistente", modalidad: "presencial", titulo: "Asistente Bilingüe · Chimalhuacán · Indeed", empresa: "Indeed", plataforma: "Indeed", ubicacion: "Presencial · Chimalhuacán, EDOMEX", descripcion: "Indeed con ubicación en Chimalhuacán. Ordena por fecha para ver las más recientes. Verifica ubicación antes de postularte.", url: "https://www.indeed.com/jobs?q=asistente%20bilingue%20ingles&l=Chimalhuac%C3%A1n&sort=date", salario: "Ver en plataforma" },
+  { id: "p1042", tipo: "asistente", modalidad: "presencial", titulo: "Asistente Bilingüe · Chimalhuacán · OCC", empresa: "OCC Mundial", plataforma: "OCC", ubicacion: "Presencial · Chimalhuacán, EDOMEX", descripcion: "OCC con ubicación en Chimalhuacán. Confirma que la ubicación sea correcta antes de aplicar.", url: "https://www.occ.com.mx/empleos/de-asistente-bilingue/?location=Chimalhuac%C3%A1n", salario: "Ver en plataforma" },
+  { id: "p1043", tipo: "asistente", modalidad: "presencial", titulo: "Asistente Bilingüe · Chimalhuacán · Computrabajo", empresa: "Computrabajo", plataforma: "Computrabajo", ubicacion: "Presencial · Chimalhuacán, EDOMEX", descripcion: "Computrabajo con ubicación en Chimalhuacán. Verifica ubicación exacta antes de postularte.", url: "https://mx.computrabajo.com/trabajo-de-asistente-bilingue?l=Chimalhuac%C3%A1n", salario: "Ver en plataforma" },
+  { id: "p1044", tipo: "asistente", modalidad: "presencial", titulo: "Asistente Bilingüe · Chimalhuacán · LinkedIn", empresa: "LinkedIn", plataforma: "LinkedIn", ubicacion: "Presencial · Chimalhuacán, EDOMEX", descripcion: "LinkedIn con ubicación en Chimalhuacán, publicadas esta semana. Verifica ubicación antes de postularte.", url: "https://www.linkedin.com/jobs/search/?keywords=asistente%20bilingual&location=Chimalhuac%C3%A1n%2C%20Mexico&f_TPR=r604800", salario: "Ver en plataforma" },
+  { id: "p1045", tipo: "teacher", modalidad: "presencial", titulo: "English Teacher · Iztapalapa · Indeed", empresa: "Indeed", plataforma: "Indeed", ubicacion: "Presencial · Iztapalapa, CDMX", descripcion: "Indeed con ubicación en Iztapalapa. Ordena por fecha para ver las más recientes. Verifica ubicación antes de postularte.", url: "https://www.indeed.com/jobs?q=maestra%20ingles&l=Iztapalapa&sort=date", salario: "Ver en plataforma" },
+  { id: "p1046", tipo: "teacher", modalidad: "presencial", titulo: "English Teacher · Iztapalapa · OCC", empresa: "OCC Mundial", plataforma: "OCC", ubicacion: "Presencial · Iztapalapa, CDMX", descripcion: "OCC con ubicación en Iztapalapa. Confirma que la ubicación sea correcta antes de aplicar.", url: "https://www.occ.com.mx/empleos/de-maestro-ingles/?location=Iztapalapa", salario: "Ver en plataforma" },
+  { id: "p1047", tipo: "teacher", modalidad: "presencial", titulo: "English Teacher · Iztapalapa · Computrabajo", empresa: "Computrabajo", plataforma: "Computrabajo", ubicacion: "Presencial · Iztapalapa, CDMX", descripcion: "Computrabajo con ubicación en Iztapalapa. Verifica ubicación exacta antes de postularte.", url: "https://mx.computrabajo.com/trabajo-de-instructor-ingles?l=Iztapalapa", salario: "Ver en plataforma" },
+  { id: "p1048", tipo: "teacher", modalidad: "presencial", titulo: "English Teacher · Iztapalapa · LinkedIn", empresa: "LinkedIn", plataforma: "LinkedIn", ubicacion: "Presencial · Iztapalapa, CDMX", descripcion: "LinkedIn con ubicación en Iztapalapa, publicadas esta semana. Verifica ubicación antes de postularte.", url: "https://www.linkedin.com/jobs/search/?keywords=english%20teacher&location=Iztapalapa%2C%20Mexico&f_TPR=r604800", salario: "Ver en plataforma" },
+  { id: "p1049", tipo: "teacher", modalidad: "presencial", titulo: "English Teacher · Nezahualcóyotl · Indeed", empresa: "Indeed", plataforma: "Indeed", ubicacion: "Presencial · Nezahualcóyotl, EDOMEX", descripcion: "Indeed con ubicación en Nezahualcóyotl. Ordena por fecha para ver las más recientes. Verifica ubicación antes de postularte.", url: "https://www.indeed.com/jobs?q=maestra%20ingles&l=Nezahualc%C3%B3yotl&sort=date", salario: "Ver en plataforma" },
+  { id: "p1050", tipo: "teacher", modalidad: "presencial", titulo: "English Teacher · Nezahualcóyotl · OCC", empresa: "OCC Mundial", plataforma: "OCC", ubicacion: "Presencial · Nezahualcóyotl, EDOMEX", descripcion: "OCC con ubicación en Nezahualcóyotl. Confirma que la ubicación sea correcta antes de aplicar.", url: "https://www.occ.com.mx/empleos/de-maestro-ingles/?location=Nezahualc%C3%B3yotl", salario: "Ver en plataforma" },
+  { id: "p1051", tipo: "teacher", modalidad: "presencial", titulo: "English Teacher · Nezahualcóyotl · Computrabajo", empresa: "Computrabajo", plataforma: "Computrabajo", ubicacion: "Presencial · Nezahualcóyotl, EDOMEX", descripcion: "Computrabajo con ubicación en Nezahualcóyotl. Verifica ubicación exacta antes de postularte.", url: "https://mx.computrabajo.com/trabajo-de-instructor-ingles?l=Nezahualc%C3%B3yotl", salario: "Ver en plataforma" },
+  { id: "p1052", tipo: "teacher", modalidad: "presencial", titulo: "English Teacher · Nezahualcóyotl · LinkedIn", empresa: "LinkedIn", plataforma: "LinkedIn", ubicacion: "Presencial · Nezahualcóyotl, EDOMEX", descripcion: "LinkedIn con ubicación en Nezahualcóyotl, publicadas esta semana. Verifica ubicación antes de postularte.", url: "https://www.linkedin.com/jobs/search/?keywords=english%20teacher&location=Nezahualc%C3%B3yotl%2C%20Mexico&f_TPR=r604800", salario: "Ver en plataforma" },
+  { id: "p1053", tipo: "teacher", modalidad: "presencial", titulo: "English Teacher · Los Reyes La Paz · Indeed", empresa: "Indeed", plataforma: "Indeed", ubicacion: "Presencial · Los Reyes La Paz, EDOMEX", descripcion: "Indeed con ubicación en Los Reyes La Paz. Ordena por fecha para ver las más recientes. Verifica ubicación antes de postularte.", url: "https://www.indeed.com/jobs?q=maestra%20ingles&l=Los%20Reyes%20La%20Paz&sort=date", salario: "Ver en plataforma" },
+  { id: "p1054", tipo: "teacher", modalidad: "presencial", titulo: "English Teacher · Los Reyes La Paz · OCC", empresa: "OCC Mundial", plataforma: "OCC", ubicacion: "Presencial · Los Reyes La Paz, EDOMEX", descripcion: "OCC con ubicación en Los Reyes La Paz. Confirma que la ubicación sea correcta antes de aplicar.", url: "https://www.occ.com.mx/empleos/de-maestro-ingles/?location=Los%20Reyes%20La%20Paz", salario: "Ver en plataforma" },
+  { id: "p1055", tipo: "teacher", modalidad: "presencial", titulo: "English Teacher · Los Reyes La Paz · Computrabajo", empresa: "Computrabajo", plataforma: "Computrabajo", ubicacion: "Presencial · Los Reyes La Paz, EDOMEX", descripcion: "Computrabajo con ubicación en Los Reyes La Paz. Verifica ubicación exacta antes de postularte.", url: "https://mx.computrabajo.com/trabajo-de-instructor-ingles?l=Los%20Reyes%20La%20Paz", salario: "Ver en plataforma" },
+  { id: "p1056", tipo: "teacher", modalidad: "presencial", titulo: "English Teacher · Los Reyes La Paz · LinkedIn", empresa: "LinkedIn", plataforma: "LinkedIn", ubicacion: "Presencial · Los Reyes La Paz, EDOMEX", descripcion: "LinkedIn con ubicación en Los Reyes La Paz, publicadas esta semana. Verifica ubicación antes de postularte.", url: "https://www.linkedin.com/jobs/search/?keywords=english%20teacher&location=Los%20Reyes%20La%20Paz%2C%20Mexico&f_TPR=r604800", salario: "Ver en plataforma" },
+  { id: "p1057", tipo: "teacher", modalidad: "presencial", titulo: "English Teacher · Texcoco · Indeed", empresa: "Indeed", plataforma: "Indeed", ubicacion: "Presencial · Texcoco, EDOMEX", descripcion: "Indeed con ubicación en Texcoco. Ordena por fecha para ver las más recientes. Verifica ubicación antes de postularte.", url: "https://www.indeed.com/jobs?q=maestra%20ingles&l=Texcoco&sort=date", salario: "Ver en plataforma" },
+  { id: "p1058", tipo: "teacher", modalidad: "presencial", titulo: "English Teacher · Texcoco · OCC", empresa: "OCC Mundial", plataforma: "OCC", ubicacion: "Presencial · Texcoco, EDOMEX", descripcion: "OCC con ubicación en Texcoco. Confirma que la ubicación sea correcta antes de aplicar.", url: "https://www.occ.com.mx/empleos/de-maestro-ingles/?location=Texcoco", salario: "Ver en plataforma" },
+  { id: "p1059", tipo: "teacher", modalidad: "presencial", titulo: "English Teacher · Texcoco · Computrabajo", empresa: "Computrabajo", plataforma: "Computrabajo", ubicacion: "Presencial · Texcoco, EDOMEX", descripcion: "Computrabajo con ubicación en Texcoco. Verifica ubicación exacta antes de postularte.", url: "https://mx.computrabajo.com/trabajo-de-instructor-ingles?l=Texcoco", salario: "Ver en plataforma" },
+  { id: "p1060", tipo: "teacher", modalidad: "presencial", titulo: "English Teacher · Texcoco · LinkedIn", empresa: "LinkedIn", plataforma: "LinkedIn", ubicacion: "Presencial · Texcoco, EDOMEX", descripcion: "LinkedIn con ubicación en Texcoco, publicadas esta semana. Verifica ubicación antes de postularte.", url: "https://www.linkedin.com/jobs/search/?keywords=english%20teacher&location=Texcoco%2C%20Mexico&f_TPR=r604800", salario: "Ver en plataforma" },
+  { id: "p1061", tipo: "teacher", modalidad: "presencial", titulo: "English Teacher · Chimalhuacán · Indeed", empresa: "Indeed", plataforma: "Indeed", ubicacion: "Presencial · Chimalhuacán, EDOMEX", descripcion: "Indeed con ubicación en Chimalhuacán. Ordena por fecha para ver las más recientes. Verifica ubicación antes de postularte.", url: "https://www.indeed.com/jobs?q=maestra%20ingles&l=Chimalhuac%C3%A1n&sort=date", salario: "Ver en plataforma" },
+  { id: "p1062", tipo: "teacher", modalidad: "presencial", titulo: "English Teacher · Chimalhuacán · OCC", empresa: "OCC Mundial", plataforma: "OCC", ubicacion: "Presencial · Chimalhuacán, EDOMEX", descripcion: "OCC con ubicación en Chimalhuacán. Confirma que la ubicación sea correcta antes de aplicar.", url: "https://www.occ.com.mx/empleos/de-maestro-ingles/?location=Chimalhuac%C3%A1n", salario: "Ver en plataforma" },
+  { id: "p1063", tipo: "teacher", modalidad: "presencial", titulo: "English Teacher · Chimalhuacán · Computrabajo", empresa: "Computrabajo", plataforma: "Computrabajo", ubicacion: "Presencial · Chimalhuacán, EDOMEX", descripcion: "Computrabajo con ubicación en Chimalhuacán. Verifica ubicación exacta antes de postularte.", url: "https://mx.computrabajo.com/trabajo-de-instructor-ingles?l=Chimalhuac%C3%A1n", salario: "Ver en plataforma" },
+  { id: "p1064", tipo: "teacher", modalidad: "presencial", titulo: "English Teacher · Chimalhuacán · LinkedIn", empresa: "LinkedIn", plataforma: "LinkedIn", ubicacion: "Presencial · Chimalhuacán, EDOMEX", descripcion: "LinkedIn con ubicación en Chimalhuacán, publicadas esta semana. Verifica ubicación antes de postularte.", url: "https://www.linkedin.com/jobs/search/?keywords=english%20teacher&location=Chimalhuac%C3%A1n%2C%20Mexico&f_TPR=r604800", salario: "Ver en plataforma" },
+  { id: "p1065", tipo: "interprete", modalidad: "presencial", titulo: "Intérprete / Traductora · Iztapalapa · Indeed", empresa: "Indeed", plataforma: "Indeed", ubicacion: "Presencial · Iztapalapa, CDMX", descripcion: "Indeed con ubicación en Iztapalapa. Ordena por fecha para ver las más recientes. Verifica ubicación antes de postularte.", url: "https://www.indeed.com/jobs?q=interprete%20bilingue&l=Iztapalapa&sort=date", salario: "Ver en plataforma" },
+  { id: "p1066", tipo: "interprete", modalidad: "presencial", titulo: "Intérprete / Traductora · Iztapalapa · OCC", empresa: "OCC Mundial", plataforma: "OCC", ubicacion: "Presencial · Iztapalapa, CDMX", descripcion: "OCC con ubicación en Iztapalapa. Confirma que la ubicación sea correcta antes de aplicar.", url: "https://www.occ.com.mx/empleos/de-interprete-bilingue/?location=Iztapalapa", salario: "Ver en plataforma" },
+  { id: "p1067", tipo: "interprete", modalidad: "presencial", titulo: "Intérprete / Traductora · Iztapalapa · Computrabajo", empresa: "Computrabajo", plataforma: "Computrabajo", ubicacion: "Presencial · Iztapalapa, CDMX", descripcion: "Computrabajo con ubicación en Iztapalapa. Verifica ubicación exacta antes de postularte.", url: "https://mx.computrabajo.com/trabajo-de-interprete-bilingue?l=Iztapalapa", salario: "Ver en plataforma" },
+  { id: "p1068", tipo: "interprete", modalidad: "presencial", titulo: "Intérprete / Traductora · Iztapalapa · LinkedIn", empresa: "LinkedIn", plataforma: "LinkedIn", ubicacion: "Presencial · Iztapalapa, CDMX", descripcion: "LinkedIn con ubicación en Iztapalapa, publicadas esta semana. Verifica ubicación antes de postularte.", url: "https://www.linkedin.com/jobs/search/?keywords=interpreter%20bilingual&location=Iztapalapa%2C%20Mexico&f_TPR=r604800", salario: "Ver en plataforma" },
+  { id: "p1069", tipo: "interprete", modalidad: "presencial", titulo: "Intérprete / Traductora · Nezahualcóyotl · Indeed", empresa: "Indeed", plataforma: "Indeed", ubicacion: "Presencial · Nezahualcóyotl, EDOMEX", descripcion: "Indeed con ubicación en Nezahualcóyotl. Ordena por fecha para ver las más recientes. Verifica ubicación antes de postularte.", url: "https://www.indeed.com/jobs?q=interprete%20bilingue&l=Nezahualc%C3%B3yotl&sort=date", salario: "Ver en plataforma" },
+  { id: "p1070", tipo: "interprete", modalidad: "presencial", titulo: "Intérprete / Traductora · Nezahualcóyotl · OCC", empresa: "OCC Mundial", plataforma: "OCC", ubicacion: "Presencial · Nezahualcóyotl, EDOMEX", descripcion: "OCC con ubicación en Nezahualcóyotl. Confirma que la ubicación sea correcta antes de aplicar.", url: "https://www.occ.com.mx/empleos/de-interprete-bilingue/?location=Nezahualc%C3%B3yotl", salario: "Ver en plataforma" },
+  { id: "p1071", tipo: "interprete", modalidad: "presencial", titulo: "Intérprete / Traductora · Nezahualcóyotl · Computrabajo", empresa: "Computrabajo", plataforma: "Computrabajo", ubicacion: "Presencial · Nezahualcóyotl, EDOMEX", descripcion: "Computrabajo con ubicación en Nezahualcóyotl. Verifica ubicación exacta antes de postularte.", url: "https://mx.computrabajo.com/trabajo-de-interprete-bilingue?l=Nezahualc%C3%B3yotl", salario: "Ver en plataforma" },
+  { id: "p1072", tipo: "interprete", modalidad: "presencial", titulo: "Intérprete / Traductora · Nezahualcóyotl · LinkedIn", empresa: "LinkedIn", plataforma: "LinkedIn", ubicacion: "Presencial · Nezahualcóyotl, EDOMEX", descripcion: "LinkedIn con ubicación en Nezahualcóyotl, publicadas esta semana. Verifica ubicación antes de postularte.", url: "https://www.linkedin.com/jobs/search/?keywords=interpreter%20bilingual&location=Nezahualc%C3%B3yotl%2C%20Mexico&f_TPR=r604800", salario: "Ver en plataforma" },
+  { id: "p1073", tipo: "interprete", modalidad: "presencial", titulo: "Intérprete / Traductora · Los Reyes La Paz · Indeed", empresa: "Indeed", plataforma: "Indeed", ubicacion: "Presencial · Los Reyes La Paz, EDOMEX", descripcion: "Indeed con ubicación en Los Reyes La Paz. Ordena por fecha para ver las más recientes. Verifica ubicación antes de postularte.", url: "https://www.indeed.com/jobs?q=interprete%20bilingue&l=Los%20Reyes%20La%20Paz&sort=date", salario: "Ver en plataforma" },
+  { id: "p1074", tipo: "interprete", modalidad: "presencial", titulo: "Intérprete / Traductora · Los Reyes La Paz · OCC", empresa: "OCC Mundial", plataforma: "OCC", ubicacion: "Presencial · Los Reyes La Paz, EDOMEX", descripcion: "OCC con ubicación en Los Reyes La Paz. Confirma que la ubicación sea correcta antes de aplicar.", url: "https://www.occ.com.mx/empleos/de-interprete-bilingue/?location=Los%20Reyes%20La%20Paz", salario: "Ver en plataforma" },
+  { id: "p1075", tipo: "interprete", modalidad: "presencial", titulo: "Intérprete / Traductora · Los Reyes La Paz · Computrabajo", empresa: "Computrabajo", plataforma: "Computrabajo", ubicacion: "Presencial · Los Reyes La Paz, EDOMEX", descripcion: "Computrabajo con ubicación en Los Reyes La Paz. Verifica ubicación exacta antes de postularte.", url: "https://mx.computrabajo.com/trabajo-de-interprete-bilingue?l=Los%20Reyes%20La%20Paz", salario: "Ver en plataforma" },
+  { id: "p1076", tipo: "interprete", modalidad: "presencial", titulo: "Intérprete / Traductora · Los Reyes La Paz · LinkedIn", empresa: "LinkedIn", plataforma: "LinkedIn", ubicacion: "Presencial · Los Reyes La Paz, EDOMEX", descripcion: "LinkedIn con ubicación en Los Reyes La Paz, publicadas esta semana. Verifica ubicación antes de postularte.", url: "https://www.linkedin.com/jobs/search/?keywords=interpreter%20bilingual&location=Los%20Reyes%20La%20Paz%2C%20Mexico&f_TPR=r604800", salario: "Ver en plataforma" },
+  { id: "p1077", tipo: "interprete", modalidad: "presencial", titulo: "Intérprete / Traductora · Texcoco · Indeed", empresa: "Indeed", plataforma: "Indeed", ubicacion: "Presencial · Texcoco, EDOMEX", descripcion: "Indeed con ubicación en Texcoco. Ordena por fecha para ver las más recientes. Verifica ubicación antes de postularte.", url: "https://www.indeed.com/jobs?q=interprete%20bilingue&l=Texcoco&sort=date", salario: "Ver en plataforma" },
+  { id: "p1078", tipo: "interprete", modalidad: "presencial", titulo: "Intérprete / Traductora · Texcoco · OCC", empresa: "OCC Mundial", plataforma: "OCC", ubicacion: "Presencial · Texcoco, EDOMEX", descripcion: "OCC con ubicación en Texcoco. Confirma que la ubicación sea correcta antes de aplicar.", url: "https://www.occ.com.mx/empleos/de-interprete-bilingue/?location=Texcoco", salario: "Ver en plataforma" },
+  { id: "p1079", tipo: "interprete", modalidad: "presencial", titulo: "Intérprete / Traductora · Texcoco · Computrabajo", empresa: "Computrabajo", plataforma: "Computrabajo", ubicacion: "Presencial · Texcoco, EDOMEX", descripcion: "Computrabajo con ubicación en Texcoco. Verifica ubicación exacta antes de postularte.", url: "https://mx.computrabajo.com/trabajo-de-interprete-bilingue?l=Texcoco", salario: "Ver en plataforma" },
+  { id: "p1080", tipo: "interprete", modalidad: "presencial", titulo: "Intérprete / Traductora · Texcoco · LinkedIn", empresa: "LinkedIn", plataforma: "LinkedIn", ubicacion: "Presencial · Texcoco, EDOMEX", descripcion: "LinkedIn con ubicación en Texcoco, publicadas esta semana. Verifica ubicación antes de postularte.", url: "https://www.linkedin.com/jobs/search/?keywords=interpreter%20bilingual&location=Texcoco%2C%20Mexico&f_TPR=r604800", salario: "Ver en plataforma" },
+  { id: "p1081", tipo: "interprete", modalidad: "presencial", titulo: "Intérprete / Traductora · Chimalhuacán · Indeed", empresa: "Indeed", plataforma: "Indeed", ubicacion: "Presencial · Chimalhuacán, EDOMEX", descripcion: "Indeed con ubicación en Chimalhuacán. Ordena por fecha para ver las más recientes. Verifica ubicación antes de postularte.", url: "https://www.indeed.com/jobs?q=interprete%20bilingue&l=Chimalhuac%C3%A1n&sort=date", salario: "Ver en plataforma" },
+  { id: "p1082", tipo: "interprete", modalidad: "presencial", titulo: "Intérprete / Traductora · Chimalhuacán · OCC", empresa: "OCC Mundial", plataforma: "OCC", ubicacion: "Presencial · Chimalhuacán, EDOMEX", descripcion: "OCC con ubicación en Chimalhuacán. Confirma que la ubicación sea correcta antes de aplicar.", url: "https://www.occ.com.mx/empleos/de-interprete-bilingue/?location=Chimalhuac%C3%A1n", salario: "Ver en plataforma" },
+  { id: "p1083", tipo: "interprete", modalidad: "presencial", titulo: "Intérprete / Traductora · Chimalhuacán · Computrabajo", empresa: "Computrabajo", plataforma: "Computrabajo", ubicacion: "Presencial · Chimalhuacán, EDOMEX", descripcion: "Computrabajo con ubicación en Chimalhuacán. Verifica ubicación exacta antes de postularte.", url: "https://mx.computrabajo.com/trabajo-de-interprete-bilingue?l=Chimalhuac%C3%A1n", salario: "Ver en plataforma" },
+  { id: "p1084", tipo: "interprete", modalidad: "presencial", titulo: "Intérprete / Traductora · Chimalhuacán · LinkedIn", empresa: "LinkedIn", plataforma: "LinkedIn", ubicacion: "Presencial · Chimalhuacán, EDOMEX", descripcion: "LinkedIn con ubicación en Chimalhuacán, publicadas esta semana. Verifica ubicación antes de postularte.", url: "https://www.linkedin.com/jobs/search/?keywords=interpreter%20bilingual&location=Chimalhuac%C3%A1n%2C%20Mexico&f_TPR=r604800", salario: "Ver en plataforma" },
+  { id: "p1085", tipo: "atencion", modalidad: "presencial", titulo: "Atención Clientes · Iztapalapa · Indeed", empresa: "Indeed", plataforma: "Indeed", ubicacion: "Presencial · Iztapalapa, CDMX", descripcion: "Indeed con ubicación en Iztapalapa. Ordena por fecha para ver las más recientes. Verifica ubicación antes de postularte.", url: "https://www.indeed.com/jobs?q=ejecutivo%20bilingue%20ingles&l=Iztapalapa&sort=date", salario: "Ver en plataforma" },
+  { id: "p1086", tipo: "atencion", modalidad: "presencial", titulo: "Atención Clientes · Iztapalapa · OCC", empresa: "OCC Mundial", plataforma: "OCC", ubicacion: "Presencial · Iztapalapa, CDMX", descripcion: "OCC con ubicación en Iztapalapa. Confirma que la ubicación sea correcta antes de aplicar.", url: "https://www.occ.com.mx/empleos/de-atencion-a-clientes-bilingue/?location=Iztapalapa", salario: "Ver en plataforma" },
+  { id: "p1087", tipo: "atencion", modalidad: "presencial", titulo: "Atención Clientes · Iztapalapa · Computrabajo", empresa: "Computrabajo", plataforma: "Computrabajo", ubicacion: "Presencial · Iztapalapa, CDMX", descripcion: "Computrabajo con ubicación en Iztapalapa. Verifica ubicación exacta antes de postularte.", url: "https://mx.computrabajo.com/trabajo-de-ejecutivo-bilingue?l=Iztapalapa", salario: "Ver en plataforma" },
+  { id: "p1088", tipo: "atencion", modalidad: "presencial", titulo: "Atención Clientes · Iztapalapa · LinkedIn", empresa: "LinkedIn", plataforma: "LinkedIn", ubicacion: "Presencial · Iztapalapa, CDMX", descripcion: "LinkedIn con ubicación en Iztapalapa, publicadas esta semana. Verifica ubicación antes de postularte.", url: "https://www.linkedin.com/jobs/search/?keywords=bilingual%20customer%20service&location=Iztapalapa%2C%20Mexico&f_TPR=r604800", salario: "Ver en plataforma" },
+  { id: "p1089", tipo: "atencion", modalidad: "presencial", titulo: "Atención Clientes · Nezahualcóyotl · Indeed", empresa: "Indeed", plataforma: "Indeed", ubicacion: "Presencial · Nezahualcóyotl, EDOMEX", descripcion: "Indeed con ubicación en Nezahualcóyotl. Ordena por fecha para ver las más recientes. Verifica ubicación antes de postularte.", url: "https://www.indeed.com/jobs?q=ejecutivo%20bilingue%20ingles&l=Nezahualc%C3%B3yotl&sort=date", salario: "Ver en plataforma" },
+  { id: "p1090", tipo: "atencion", modalidad: "presencial", titulo: "Atención Clientes · Nezahualcóyotl · OCC", empresa: "OCC Mundial", plataforma: "OCC", ubicacion: "Presencial · Nezahualcóyotl, EDOMEX", descripcion: "OCC con ubicación en Nezahualcóyotl. Confirma que la ubicación sea correcta antes de aplicar.", url: "https://www.occ.com.mx/empleos/de-atencion-a-clientes-bilingue/?location=Nezahualc%C3%B3yotl", salario: "Ver en plataforma" },
+  { id: "p1091", tipo: "atencion", modalidad: "presencial", titulo: "Atención Clientes · Nezahualcóyotl · Computrabajo", empresa: "Computrabajo", plataforma: "Computrabajo", ubicacion: "Presencial · Nezahualcóyotl, EDOMEX", descripcion: "Computrabajo con ubicación en Nezahualcóyotl. Verifica ubicación exacta antes de postularte.", url: "https://mx.computrabajo.com/trabajo-de-ejecutivo-bilingue?l=Nezahualc%C3%B3yotl", salario: "Ver en plataforma" },
+  { id: "p1092", tipo: "atencion", modalidad: "presencial", titulo: "Atención Clientes · Nezahualcóyotl · LinkedIn", empresa: "LinkedIn", plataforma: "LinkedIn", ubicacion: "Presencial · Nezahualcóyotl, EDOMEX", descripcion: "LinkedIn con ubicación en Nezahualcóyotl, publicadas esta semana. Verifica ubicación antes de postularte.", url: "https://www.linkedin.com/jobs/search/?keywords=bilingual%20customer%20service&location=Nezahualc%C3%B3yotl%2C%20Mexico&f_TPR=r604800", salario: "Ver en plataforma" },
+  { id: "p1093", tipo: "atencion", modalidad: "presencial", titulo: "Atención Clientes · Los Reyes La Paz · Indeed", empresa: "Indeed", plataforma: "Indeed", ubicacion: "Presencial · Los Reyes La Paz, EDOMEX", descripcion: "Indeed con ubicación en Los Reyes La Paz. Ordena por fecha para ver las más recientes. Verifica ubicación antes de postularte.", url: "https://www.indeed.com/jobs?q=ejecutivo%20bilingue%20ingles&l=Los%20Reyes%20La%20Paz&sort=date", salario: "Ver en plataforma" },
+  { id: "p1094", tipo: "atencion", modalidad: "presencial", titulo: "Atención Clientes · Los Reyes La Paz · OCC", empresa: "OCC Mundial", plataforma: "OCC", ubicacion: "Presencial · Los Reyes La Paz, EDOMEX", descripcion: "OCC con ubicación en Los Reyes La Paz. Confirma que la ubicación sea correcta antes de aplicar.", url: "https://www.occ.com.mx/empleos/de-atencion-a-clientes-bilingue/?location=Los%20Reyes%20La%20Paz", salario: "Ver en plataforma" },
+  { id: "p1095", tipo: "atencion", modalidad: "presencial", titulo: "Atención Clientes · Los Reyes La Paz · Computrabajo", empresa: "Computrabajo", plataforma: "Computrabajo", ubicacion: "Presencial · Los Reyes La Paz, EDOMEX", descripcion: "Computrabajo con ubicación en Los Reyes La Paz. Verifica ubicación exacta antes de postularte.", url: "https://mx.computrabajo.com/trabajo-de-ejecutivo-bilingue?l=Los%20Reyes%20La%20Paz", salario: "Ver en plataforma" },
+  { id: "p1096", tipo: "atencion", modalidad: "presencial", titulo: "Atención Clientes · Los Reyes La Paz · LinkedIn", empresa: "LinkedIn", plataforma: "LinkedIn", ubicacion: "Presencial · Los Reyes La Paz, EDOMEX", descripcion: "LinkedIn con ubicación en Los Reyes La Paz, publicadas esta semana. Verifica ubicación antes de postularte.", url: "https://www.linkedin.com/jobs/search/?keywords=bilingual%20customer%20service&location=Los%20Reyes%20La%20Paz%2C%20Mexico&f_TPR=r604800", salario: "Ver en plataforma" },
+  { id: "p1097", tipo: "atencion", modalidad: "presencial", titulo: "Atención Clientes · Texcoco · Indeed", empresa: "Indeed", plataforma: "Indeed", ubicacion: "Presencial · Texcoco, EDOMEX", descripcion: "Indeed con ubicación en Texcoco. Ordena por fecha para ver las más recientes. Verifica ubicación antes de postularte.", url: "https://www.indeed.com/jobs?q=ejecutivo%20bilingue%20ingles&l=Texcoco&sort=date", salario: "Ver en plataforma" },
+  { id: "p1098", tipo: "atencion", modalidad: "presencial", titulo: "Atención Clientes · Texcoco · OCC", empresa: "OCC Mundial", plataforma: "OCC", ubicacion: "Presencial · Texcoco, EDOMEX", descripcion: "OCC con ubicación en Texcoco. Confirma que la ubicación sea correcta antes de aplicar.", url: "https://www.occ.com.mx/empleos/de-atencion-a-clientes-bilingue/?location=Texcoco", salario: "Ver en plataforma" },
+  { id: "p1099", tipo: "atencion", modalidad: "presencial", titulo: "Atención Clientes · Texcoco · Computrabajo", empresa: "Computrabajo", plataforma: "Computrabajo", ubicacion: "Presencial · Texcoco, EDOMEX", descripcion: "Computrabajo con ubicación en Texcoco. Verifica ubicación exacta antes de postularte.", url: "https://mx.computrabajo.com/trabajo-de-ejecutivo-bilingue?l=Texcoco", salario: "Ver en plataforma" },
+  { id: "p1100", tipo: "atencion", modalidad: "presencial", titulo: "Atención Clientes · Texcoco · LinkedIn", empresa: "LinkedIn", plataforma: "LinkedIn", ubicacion: "Presencial · Texcoco, EDOMEX", descripcion: "LinkedIn con ubicación en Texcoco, publicadas esta semana. Verifica ubicación antes de postularte.", url: "https://www.linkedin.com/jobs/search/?keywords=bilingual%20customer%20service&location=Texcoco%2C%20Mexico&f_TPR=r604800", salario: "Ver en plataforma" },
+  { id: "p1101", tipo: "atencion", modalidad: "presencial", titulo: "Atención Clientes · Chimalhuacán · Indeed", empresa: "Indeed", plataforma: "Indeed", ubicacion: "Presencial · Chimalhuacán, EDOMEX", descripcion: "Indeed con ubicación en Chimalhuacán. Ordena por fecha para ver las más recientes. Verifica ubicación antes de postularte.", url: "https://www.indeed.com/jobs?q=ejecutivo%20bilingue%20ingles&l=Chimalhuac%C3%A1n&sort=date", salario: "Ver en plataforma" },
+  { id: "p1102", tipo: "atencion", modalidad: "presencial", titulo: "Atención Clientes · Chimalhuacán · OCC", empresa: "OCC Mundial", plataforma: "OCC", ubicacion: "Presencial · Chimalhuacán, EDOMEX", descripcion: "OCC con ubicación en Chimalhuacán. Confirma que la ubicación sea correcta antes de aplicar.", url: "https://www.occ.com.mx/empleos/de-atencion-a-clientes-bilingue/?location=Chimalhuac%C3%A1n", salario: "Ver en plataforma" },
+  { id: "p1103", tipo: "atencion", modalidad: "presencial", titulo: "Atención Clientes · Chimalhuacán · Computrabajo", empresa: "Computrabajo", plataforma: "Computrabajo", ubicacion: "Presencial · Chimalhuacán, EDOMEX", descripcion: "Computrabajo con ubicación en Chimalhuacán. Verifica ubicación exacta antes de postularte.", url: "https://mx.computrabajo.com/trabajo-de-ejecutivo-bilingue?l=Chimalhuac%C3%A1n", salario: "Ver en plataforma" },
+  { id: "p1104", tipo: "atencion", modalidad: "presencial", titulo: "Atención Clientes · Chimalhuacán · LinkedIn", empresa: "LinkedIn", plataforma: "LinkedIn", ubicacion: "Presencial · Chimalhuacán, EDOMEX", descripcion: "LinkedIn con ubicación en Chimalhuacán, publicadas esta semana. Verifica ubicación antes de postularte.", url: "https://www.linkedin.com/jobs/search/?keywords=bilingual%20customer%20service&location=Chimalhuac%C3%A1n%2C%20Mexico&f_TPR=r604800", salario: "Ver en plataforma" },
 ];
 
-const TIPOS = [
-  { key: "todos", label: "🔍 Todos" },
-  { key: "paralegal", label: "⚖️ Paralegal / Legal" },
-  { key: "asistente", label: "📋 Asistente Bilingüe" },
-  { key: "teacher", label: "👩‍🏫 English Teacher" },
-  { key: "interprete", label: "🗣️ Intérprete / Traductora" },
-  { key: "atencion", label: "📞 Atención a Clientes" },
+const VACANTES_REMOTO = [
+  // PARALEGAL REMOTO
+  { id: "r1", tipo: "paralegal", modalidad: "remoto", titulo: "Paralegal Inmigración Bilingüe · LinkedIn", empresa: "LinkedIn", plataforma: "LinkedIn", ubicacion: "Remoto · Worldwide", descripcion: "Firmas EE.UU. buscan paralegal bilingüe. Filtra Remote y Most Recent para ver las más nuevas.", url: liR("paralegal immigration bilingual spanish"), salario: "$45,000-65,000/año" },
+  { id: "r2", tipo: "paralegal", modalidad: "remoto", titulo: "Legal Assistant Immigration Remote · Indeed", empresa: "Indeed", plataforma: "Indeed", ubicacion: "Remoto · USA", descripcion: "Filtro Remote activo. Ordena Last 7 days para ver las más recientes.", url: indeedR("legal assistant immigration bilingual spanish"), salario: "$18-28/hr" },
+  { id: "r3", tipo: "paralegal", modalidad: "remoto", titulo: "Paralegal Removal Defense / Asylum · Indeed", empresa: "Indeed", plataforma: "Indeed", ubicacion: "Remoto · USA", descripcion: "Búsqueda específica removal defense y asylum con filtro remoto.", url: indeedR("paralegal removal defense asylum bilingual"), salario: "$20-30/hr" },
+  { id: "r4", tipo: "paralegal", modalidad: "remoto", titulo: "Paralegal USCIS Bilingual · ZipRecruiter", empresa: "ZipRecruiter", plataforma: "ZipRecruiter", ubicacion: "Remoto · USA", descripcion: "Miles de firmas de inmigración EE.UU. buscando paralegal bilingüe remoto.", url: "https://www.ziprecruiter.com/Jobs/Immigration-Paralegal-Bilingual-Spanish-Remote", salario: "$45,000-65,000/año" },
+  { id: "r5", tipo: "paralegal", modalidad: "remoto", titulo: "Paralegal IP Propiedad Intelectual · LinkedIn", empresa: "LinkedIn", plataforma: "LinkedIn", ubicacion: "Remoto · Worldwide", descripcion: "Firmas internacionales de IP buscan paralegal bilingüe con experiencia en patentes.", url: liR("paralegal intellectual property bilingual spanish"), salario: "$50,000-70,000/año" },
+  { id: "r6", tipo: "paralegal", modalidad: "remoto", titulo: "Patent Paralegal Bilingual · Indeed", empresa: "Indeed", plataforma: "Indeed", ubicacion: "Remoto · USA / Worldwide", descripcion: "Paralegal en propiedad intelectual, patentes y marcas. Filtro Remote activo.", url: indeedR("IP paralegal intellectual property bilingual"), salario: "$50,000-70,000/año" },
+  { id: "r7", tipo: "paralegal", modalidad: "remoto", titulo: "Legal Jobs Remote · RemoteOK", empresa: "RemoteOK", plataforma: "RemoteOK", ubicacion: "Remoto · Worldwide", descripcion: "Portal 100% remoto. Sección legal actualizada diariamente con vacantes verificadas.", url: "https://remoteok.com/remote-legal-jobs", salario: "Ver en plataforma" },
+  { id: "r8", tipo: "paralegal", modalidad: "remoto", titulo: "Legal Positions · WeWorkRemotely", empresa: "WeWorkRemotely", plataforma: "WeWorkRemotely", ubicacion: "Remoto · Worldwide", descripcion: "Bolsa remota top. Sección Legal con vacantes internacionales verificadas.", url: "https://weworkremotely.com/remote-jobs/search?term=paralegal+bilingual+legal", salario: "Ver en plataforma" },
+  { id: "r9", tipo: "paralegal", modalidad: "remoto", titulo: "Legal Paralegal Freelance · Upwork", empresa: "Upwork", plataforma: "Upwork", ubicacion: "Remoto · Worldwide", descripcion: "Plataforma freelance líder. Proyectos immigration law y IP para clientes EE.UU.", url: "https://www.upwork.com/search/jobs/?q=paralegal+immigration+bilingual+spanish&sort=recency", salario: "$25-50/hr" },
+  { id: "r10", tipo: "paralegal", modalidad: "remoto", titulo: "Legal Freelance LATAM · Workana", empresa: "Workana", plataforma: "Workana", ubicacion: "Remoto · LATAM", descripcion: "Mayor plataforma freelance LATAM. Proyectos legales y traducción en español e inglés.", url: "https://www.workana.com/jobs?category=legal-law", salario: "Por proyecto" },
+  { id: "r11", tipo: "paralegal", modalidad: "remoto", titulo: "Paralegal Home Office · OCC", empresa: "OCC Mundial", plataforma: "OCC", ubicacion: "Remoto · México", descripcion: "Bolsa líder México. Paralegal y asistente legal en Home Office.", url: occR("paralegal"), salario: "Ver en plataforma" },
+  { id: "r12", tipo: "paralegal", modalidad: "remoto", titulo: "Paralegal Teletrabajo · Computrabajo", empresa: "Computrabajo", plataforma: "Computrabajo", ubicacion: "Remoto · México / LATAM", descripcion: "Computrabajo filtrando teletrabajo para paralegal y asistente legal bilingüe.", url: ctR("paralegal-bilingue"), salario: "Ver en plataforma" },
+  { id: "r13", tipo: "paralegal", modalidad: "remoto", titulo: "Paralegal Bilingüe Remote · Google Jobs", empresa: "Google Jobs", plataforma: "Google Jobs", ubicacion: "Remoto · México / USA", descripcion: "Google agrega vacantes de todas las bolsas con filtro remoto activado.", url: gjR("paralegal bilingue"), salario: "Ver en plataforma" },
+  { id: "r14", tipo: "paralegal", modalidad: "remoto", titulo: "Paralegal EE.UU. Remote · Google Jobs", empresa: "Google Jobs", plataforma: "Google Jobs", ubicacion: "Remoto · USA", descripcion: "Vacantes de firmas de inmigración EE.UU. buscando paralegal bilingüe remoto.", url: gjR("paralegal immigration bilingual"), salario: "Ver en plataforma" },
+  { id: "r15", tipo: "paralegal", modalidad: "remoto", titulo: "Propiedad Intelectual Remote · Google Jobs", empresa: "Google Jobs", plataforma: "Google Jobs", ubicacion: "Remoto · Worldwide", descripcion: "Vacantes remotas de propiedad intelectual y patentes para perfil bilingüe.", url: gjR("paralegal propiedad intelectual"), salario: "Ver en plataforma" },
+
+  // ASISTENTE BILINGÜE REMOTO
+  { id: "r20", tipo: "asistente", modalidad: "remoto", titulo: "Virtual Assistant Bilingüe · LinkedIn", empresa: "LinkedIn", plataforma: "LinkedIn", ubicacion: "Remoto · USA / LATAM", descripcion: "Asistente virtual bilingüe para firmas y empresas EE.UU. 100% remoto desde México.", url: liR("virtual assistant bilingual spanish english"), salario: "$15-25/hr" },
+  { id: "r21", tipo: "asistente", modalidad: "remoto", titulo: "Administrative Assistant Bilingüe · Indeed", empresa: "Indeed", plataforma: "Indeed", ubicacion: "Remoto · USA", descripcion: "Asistentes administrativas bilingüe para empresas EE.UU. Filtro Remote activo.", url: indeedR("administrative assistant bilingual spanish english"), salario: "$16-22/hr" },
+  { id: "r22", tipo: "asistente", modalidad: "remoto", titulo: "Executive Assistant Bilingüe · Glassdoor", empresa: "Glassdoor", plataforma: "Glassdoor", ubicacion: "Remoto · USA / Worldwide", descripcion: "Asistentes ejecutivas bilingüe para directivos de empresas internacionales.", url: "https://www.glassdoor.com/Job/jobs.htm?sc.keyword=executive+assistant+bilingual+spanish+remote&remoteWorkType=1&sortBy=date_desc", salario: "$45,000-65,000/año" },
+  { id: "r23", tipo: "asistente", modalidad: "remoto", titulo: "Operations Coordinator Bilingüe · ZipRecruiter", empresa: "ZipRecruiter", plataforma: "ZipRecruiter", ubicacion: "Remoto · USA", descripcion: "Coordinadoras de operaciones bilingüe para empresas con equipos en LATAM.", url: "https://www.ziprecruiter.com/Jobs/Operations-Coordinator-Bilingual-Spanish-Remote", salario: "$45,000-60,000/año" },
+  { id: "r24", tipo: "asistente", modalidad: "remoto", titulo: "Asistente Bilingüe Home Office · OCC", empresa: "OCC Mundial", plataforma: "OCC", ubicacion: "Remoto · México", descripcion: "Bolsa líder México. Asistente bilingüe en Home Office. Solo resultados remotos.", url: occR("asistente-bilingue"), salario: "Ver en plataforma" },
+  { id: "r25", tipo: "asistente", modalidad: "remoto", titulo: "Asistente Bilingüe Teletrabajo · Computrabajo", empresa: "Computrabajo", plataforma: "Computrabajo", ubicacion: "Remoto · México / LATAM", descripcion: "Asistente bilingüe en teletrabajo. Solo resultados remotos.", url: ctR("asistente-bilingue"), salario: "Ver en plataforma" },
+  { id: "r26", tipo: "asistente", modalidad: "remoto", titulo: "Bilingual Coordinator · Hireline", empresa: "Hireline", plataforma: "Hireline", ubicacion: "Remoto · LATAM / Worldwide", descripcion: "Plataforma LATAM especializada en trabajo 100% remoto con empresas que pagan en USD.", url: "https://hireline.io/mx/empleos-remotos?q=bilingue+asistente", salario: "USD" },
+  { id: "r27", tipo: "asistente", modalidad: "remoto", titulo: "Asistente Bilingüe Remote · Google Jobs", empresa: "Google Jobs", plataforma: "Google Jobs", ubicacion: "Remoto · México / USA", descripcion: "Google agrega vacantes de todas las bolsas con filtro remoto. Asistente bilingüe home office.", url: gjR("asistente bilingue ingles"), salario: "Ver en plataforma" },
+
+  // ENGLISH TEACHER REMOTO
+  { id: "r30", tipo: "teacher", modalidad: "remoto", titulo: "Online English Teacher · LinkedIn", empresa: "LinkedIn", plataforma: "LinkedIn", ubicacion: "Remoto · Worldwide", descripcion: "Plataformas de inglés online buscan maestras bilingüe. TOEIC 920 es diferenciador enorme.", url: liR("online english teacher bilingual remote"), salario: "$15-30/hr" },
+  { id: "r31", tipo: "teacher", modalidad: "remoto", titulo: "English Tutor / Teacher Online · Indeed", empresa: "Indeed", plataforma: "Indeed", ubicacion: "Remoto · Worldwide", descripcion: "Tutor de inglés online para adultos y corporativos. Filtro Remote activo.", url: indeedR("english teacher tutor online bilingual spanish"), salario: "$15-25/hr" },
+  { id: "r32", tipo: "teacher", modalidad: "remoto", titulo: "Corporate English Trainer · Glassdoor", empresa: "Glassdoor", plataforma: "Glassdoor", ubicacion: "Remoto · LATAM / Worldwide", descripcion: "Trainers de inglés corporativo con experiencia en capacitación. Filtro remoto activo.", url: "https://www.glassdoor.com/Job/jobs.htm?sc.keyword=english+corporate+trainer+bilingual+remote&remoteWorkType=1&sortBy=date_desc", salario: "$20-35/hr" },
+  { id: "r33", tipo: "teacher", modalidad: "remoto", titulo: "ESL Teacher Online · RemoteOK", empresa: "RemoteOK", plataforma: "RemoteOK", ubicacion: "Remoto · Worldwide", descripcion: "Plataformas ESL buscan maestras bilingüe. Portal 100% remoto con vacantes verificadas.", url: "https://remoteok.com/remote-teacher-jobs", salario: "$15-28/hr" },
+  { id: "r34", tipo: "teacher", modalidad: "remoto", titulo: "English Teacher Home Office · OCC", empresa: "OCC Mundial", plataforma: "OCC", ubicacion: "Remoto · México", descripcion: "Maestras de inglés en modalidad Home Office en México. Solo resultados remotos.", url: occR("maestro-ingles"), salario: "Ver en plataforma" },
+  { id: "r35", tipo: "teacher", modalidad: "remoto", titulo: "English Teacher Teletrabajo · Computrabajo", empresa: "Computrabajo", plataforma: "Computrabajo", ubicacion: "Remoto · México / LATAM", descripcion: "Maestras de inglés en teletrabajo. Solo resultados remotos.", url: ctR("maestro-ingles"), salario: "Ver en plataforma" },
+  { id: "r36", tipo: "teacher", modalidad: "remoto", titulo: "English Teacher Online · Google Jobs", empresa: "Google Jobs", plataforma: "Google Jobs", ubicacion: "Remoto · México / Worldwide", descripcion: "Google Jobs con filtro remoto para maestras de inglés online.", url: gjR("maestra ingles online"), salario: "Ver en plataforma" },
+
+  // INTÉRPRETE REMOTO
+  { id: "r40", tipo: "interprete", modalidad: "remoto", titulo: "Legal Translator Spanish-English · LinkedIn", empresa: "LinkedIn", plataforma: "LinkedIn", ubicacion: "Remoto · Worldwide", descripcion: "Traductoras legales español-inglés para firmas y organismos internacionales.", url: liR("legal translator spanish english remote"), salario: "$25-50/hr" },
+  { id: "r41", tipo: "interprete", modalidad: "remoto", titulo: "Legal Translation · Upwork", empresa: "Upwork", plataforma: "Upwork", ubicacion: "Remoto · Worldwide", descripcion: "Proyectos de traducción legal español-inglés para clientes EE.UU.", url: "https://www.upwork.com/search/jobs/?q=legal+translation+spanish+english&sort=recency", salario: "$25-60/hr" },
+  { id: "r42", tipo: "interprete", modalidad: "remoto", titulo: "Remote Interpreter Bilingual · Indeed", empresa: "Indeed", plataforma: "Indeed", ubicacion: "Remoto · USA", descripcion: "Intérpretes bilingüe para sesiones legales vía videollamada. Filtro Remote activo.", url: indeedR("interpreter bilingual spanish english remote"), salario: "$18-35/hr" },
+  { id: "r43", tipo: "interprete", modalidad: "remoto", titulo: "Intérprete Home Office · OCC", empresa: "OCC Mundial", plataforma: "OCC", ubicacion: "Remoto · México", descripcion: "Intérprete bilingüe en Home Office México. Solo resultados remotos.", url: occR("interprete-bilingue"), salario: "Ver en plataforma" },
+  { id: "r44", tipo: "interprete", modalidad: "remoto", titulo: "Traductora Teletrabajo · Computrabajo", empresa: "Computrabajo", plataforma: "Computrabajo", ubicacion: "Remoto · México / LATAM", descripcion: "Traductoras e intérpretes bilingüe en teletrabajo. Solo resultados remotos.", url: ctR("interprete-bilingue"), salario: "Ver en plataforma" },
+  { id: "r45", tipo: "interprete", modalidad: "remoto", titulo: "Intérprete Bilingüe Remote · Google Jobs", empresa: "Google Jobs", plataforma: "Google Jobs", ubicacion: "Remoto · México / USA", descripcion: "Google Jobs con filtro remoto para intérpretes y traductores bilingüe.", url: gjR("interprete traductor bilingue"), salario: "Ver en plataforma" },
+
+  // ATENCIÓN A CLIENTES REMOTO
+  { id: "r50", tipo: "atencion", modalidad: "remoto", titulo: "Customer Success Bilingüe · LinkedIn", empresa: "LinkedIn", plataforma: "LinkedIn", ubicacion: "Remoto · USA / LATAM", descripcion: "Empresas EE.UU. buscan customer success bilingüe. Paga en USD, 100% remoto.", url: liR("customer success bilingual spanish english remote"), salario: "$40,000-60,000/año" },
+  { id: "r51", tipo: "atencion", modalidad: "remoto", titulo: "Client Services Coordinator Bilingüe · Indeed", empresa: "Indeed", plataforma: "Indeed", ubicacion: "Remoto · USA", descripcion: "Coordinadoras de servicio al cliente bilingüe para firmas legales y corporativas EE.UU.", url: indeedR("client services coordinator bilingual spanish"), salario: "$18-25/hr" },
+  { id: "r52", tipo: "atencion", modalidad: "remoto", titulo: "Bilingual Customer Support · ZipRecruiter", empresa: "ZipRecruiter", plataforma: "ZipRecruiter", ubicacion: "Remoto · USA", descripcion: "Soporte al cliente bilingüe para empresas EE.UU. Atención en español e inglés.", url: "https://www.ziprecruiter.com/Jobs/Bilingual-Customer-Support-Spanish-English-Remote", salario: "$16-22/hr" },
+  { id: "r53", tipo: "atencion", modalidad: "remoto", titulo: "Atención Clientes Bilingüe Home Office · OCC", empresa: "OCC Mundial", plataforma: "OCC", ubicacion: "Remoto · México", descripcion: "Atención a clientes bilingüe en Home Office México. Solo resultados de modalidad remota.", url: occR("atencion-a-clientes-bilingue"), salario: "Ver en plataforma" },
+  { id: "r54", tipo: "atencion", modalidad: "remoto", titulo: "Ejecutivo Bilingüe Teletrabajo · Computrabajo", empresa: "Computrabajo", plataforma: "Computrabajo", ubicacion: "Remoto · México / LATAM", descripcion: "Ejecutivos bilingüe en atención a clientes modalidad teletrabajo.", url: ctR("ejecutivo-bilingue"), salario: "Ver en plataforma" },
+  { id: "r55", tipo: "atencion", modalidad: "remoto", titulo: "Atención Clientes Bilingüe Remote · Google Jobs", empresa: "Google Jobs", plataforma: "Google Jobs", ubicacion: "Remoto · México / USA", descripcion: "Google Jobs filtrando atención a clientes bilingüe remota. Vacantes actualizadas.", url: gjR("atencion clientes bilingue ingles"), salario: "Ver en plataforma" },
 ];
 
-const MODALIDADES = [
-  { key: "todos", label: "🌐 Todas" },
-  { key: "remoto", label: "🌎 Remoto / Home Office" },
-  { key: "presencial", label: "📍 Presencial Zona Oriente" },
-];
+const VACANTES = [...VACANTES_REMOTO, ...PRESENCIALES];
 
-export default function Home() {
-  const [tab, setTab] = useState("buscar");
-  const [tipo, setTipo] = useState("todos");
-  const [modalidad, setModalidad] = useState("todos");
-  const [vacantes, setVacantes] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [favoritos, setFavoritos] = useState([]);
-  const [tipoCambio, setTipoCambio] = useState(null);
-  const [empresa, setEmpresa] = useState("todos");
-  const [buscado, setBuscado] = useState(false);
+export default async function handler(req, res) {
+  const { method } = req;
 
-  useEffect(() => {
-    fetch("/api/search").then(r => r.json()).then(d => {
-      setFavoritos(d.favoritos || []);
-    });
-  }, []);
+  if (method === "GET") {
+    const favoritos = await redis.get("favoritos") || [];
+    return res.status(200).json({ favoritos });
+  }
 
-  const search = async (t, m) => {
-    setLoading(true);
-    setVacantes([]);
-    setError(null);
-    setBuscado(true);
-    try {
-      const res = await fetch("/api/search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "search", data: { tipo: t !== undefined ? t : tipo, modalidad: m !== undefined ? m : modalidad } })
-      });
-      const d = await res.json();
-      setVacantes(d.vacantes || []);
-      setTipoCambio(d.tipoCambio);
-    } catch { setError("Error al buscar. Intenta de nuevo."); }
-    finally { setLoading(false); }
-  };
+  if (method === "POST") {
+    const { action, data } = req.body;
 
-  const toggleFavorito = async (id) => {
-    const res = await fetch("/api/search", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "toggle_favorito", data: { id } })
-    });
-    const d = await res.json();
-    setFavoritos(d.favoritos || []);
-  };
+    if (action === "search") {
+      const { tipo, modalidad } = data;
+      const tc = await getUSDtoMXN();
+      let vacantes = VACANTES;
+      if (tipo && tipo !== "todos") vacantes = vacantes.filter(v => v.tipo === tipo);
+      if (modalidad && modalidad !== "todos") vacantes = vacantes.filter(v => v.modalidad === modalidad);
+      const resultado = vacantes.map(v => ({ ...v, salarioMXN: convertirSalario(v.salario, tc) }));
+      return res.status(200).json({ vacantes: resultado, tipoCambio: tc });
+    }
 
-  const vacantesFiltradas = empresa === "todos" ? vacantes : vacantes.filter(v => v.empresa === empresa || v.plataforma === empresa);
-  const modalidadBg = { remoto: "#F0FDF4", presencial: "#FEF3C7" };
+    if (action === "toggle_favorito") {
+      const { id } = data;
+      let favoritos = await redis.get("favoritos") || [];
+      favoritos = favoritos.includes(id) ? favoritos.filter(f => f !== id) : [...favoritos, id];
+      await redis.set("favoritos", favoritos);
+      return res.status(200).json({ favoritos });
+    }
+  }
 
-  const FilterBtn = ({ active, onClick, children, activeColor = "#4F46E5" }) => (
-    <button onClick={onClick} style={{
-      padding: "7px 14px", fontFamily: "'Poppins', sans-serif", fontSize: 12, fontWeight: 600,
-      cursor: "pointer", transition: "all 0.15s",
-      background: active ? activeColor : "#fff",
-      color: active ? "#fff" : "#374151",
-      border: `2px solid ${active ? activeColor : "#E5E7EB"}`,
-    }}>{children}</button>
-  );
-
-  return (
-    <>
-      <Head>
-        <title>Job Finder · Rocío Sánchez</title>
-        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" />
-      </Head>
-      <div style={{ fontFamily: "'Poppins', sans-serif", minHeight: "100vh", background: "#F7F8FC" }}>
-
-        {/* Mensaje de amor */}
-        <div style={{ background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", padding: "18px 28px", textAlign: "center" }}>
-          <p style={{ margin: 0, fontSize: 13, color: "#fff", lineHeight: 1.8, maxWidth: 700, marginLeft: "auto", marginRight: "auto" }}>
-            💜 <em>Esto lo hice con todo el amor del mundo para ti, Rocío. Cada búsqueda, cada plataforma, cada detalle fue pensado con la esperanza de que encuentres algo que te haga feliz y que esté a la altura de todo lo que eres y de todo lo que vales. Que este pequeño esfuerzo sea el primer paso hacia algo grande para ti.</em> 💜
-          </p>
-        </div>
-
-        {/* Header */}
-        <div style={{ background: "#fff", borderBottom: "2px solid #E8EAED", padding: "14px 28px" }}>
-          <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
-              <div style={{ width: 38, height: 38, background: "#4F46E5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>🔎</div>
-              <div style={{ flex: 1 }}>
-                <h1 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Job Finder · Rocío Sánchez</h1>
-                <p style={{ margin: 0, fontSize: 11, color: "#6B7280" }}>Paralegal · Asistente Bilingüe · English Teacher · Intérprete · Atención a Clientes</p>
-              </div>
-              <div style={{ display: "flex", gap: 4 }}>
-                <button onClick={() => setTab("buscar")} style={{ padding: "8px 16px", fontFamily: "'Poppins', sans-serif", fontSize: 12, fontWeight: 600, cursor: "pointer", background: tab === "buscar" ? "#4F46E5" : "transparent", color: tab === "buscar" ? "#fff" : "#6B7280", border: tab === "buscar" ? "2px solid #4F46E5" : "2px solid transparent" }}>🔍 Buscar</button>
-                <button onClick={() => setTab("favoritos")} style={{ padding: "8px 16px", fontFamily: "'Poppins', sans-serif", fontSize: 12, fontWeight: 600, cursor: "pointer", background: tab === "favoritos" ? "#4F46E5" : "transparent", color: tab === "favoritos" ? "#fff" : "#6B7280", border: tab === "favoritos" ? "2px solid #4F46E5" : "2px solid transparent" }}>⭐ Favoritos {favoritos.length > 0 ? `(${favoritos.length})` : ""}</button>
-              </div>
-            </div>
-
-            {tab === "buscar" && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-                  <span style={{ fontSize: 11, color: "#9CA3AF", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", minWidth: 80 }}>Puesto:</span>
-                  {TIPOS.map(t => (
-                    <FilterBtn key={t.key} active={tipo === t.key} onClick={() => setTipo(t.key)}>{t.label}</FilterBtn>
-                  ))}
-                </div>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-                  <span style={{ fontSize: 11, color: "#9CA3AF", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", minWidth: 80 }}>Modalidad:</span>
-                  {MODALIDADES.map(m => (
-                    <FilterBtn key={m.key} active={modalidad === m.key} onClick={() => setModalidad(m.key)} activeColor={m.key === "presencial" ? "#D97706" : "#4F46E5"}>{m.label}</FilterBtn>
-                  ))}
-                </div>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-                  <span style={{ fontSize: 11, color: "#9CA3AF", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", minWidth: 80 }}>Empresa:</span>
-                  {EMPRESAS.map(e => (
-                    <FilterBtn key={e.key} active={empresa === e.key} onClick={() => setEmpresa(e.key)} activeColor="#6D28D9">{e.label}</FilterBtn>
-                  ))}
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <button onClick={() => search()} disabled={loading} style={{ padding: "10px 28px", background: "#4F46E5", color: "#fff", border: "none", fontFamily: "'Poppins', sans-serif", fontSize: 13, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1 }}>
-                    {loading ? "⏳ Buscando..." : "Buscar →"}
-                  </button>
-                  {tipoCambio && (
-                    <span style={{ fontSize: 11, color: "#059669", fontWeight: 700, background: "#F0FDF4", padding: "4px 10px", border: "1px solid #BBF7D0" }}>
-                      💵 $1 USD = ${tipoCambio.toFixed(2)} MXN hoy
-                    </span>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div style={{ maxWidth: 1100, margin: "0 auto", padding: "22px 20px" }}>
-
-          {tab === "buscar" && (
-            <div>
-              {loading && (
-                <div style={{ textAlign: "center", padding: "60px 0" }}>
-                  <div style={{ fontSize: 30, display: "inline-block", animation: "spin 1s linear infinite" }}>⚙️</div>
-                  <p style={{ color: "#6B7280", fontSize: 14, marginTop: 12 }}>Buscando vacantes...</p>
-                  <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
-                </div>
-              )}
-
-              {error && <div style={{ background: "#FEF2F2", border: "2px solid #FCA5A5", padding: "14px 18px", color: "#B91C1C", fontSize: 13 }}>⚠️ {error}</div>}
-
-              {!loading && vacantesFiltradas.length > 0 && (
-                <div>
-                  <p style={{ fontSize: 13, color: "#6B7280", marginBottom: 16 }}>
-                    <strong style={{ color: "#1a1a2e" }}>{vacantesFiltradas.length} plataformas</strong> encontradas
-                  </p>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(310px, 1fr))", gap: 14 }}>
-                    {vacantesFiltradas.map(job => (
-                      <div key={job.id} style={{ background: "#fff", border: "2px solid #E5E7EB", padding: "16px 18px", display: "flex", flexDirection: "column", gap: 10, transition: "border-color 0.15s" }}
-                        onMouseEnter={e => e.currentTarget.style.borderColor = "#4F46E5"}
-                        onMouseLeave={e => e.currentTarget.style.borderColor = "#E5E7EB"}>
-
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                          <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-                            <span style={{ fontSize: 10, padding: "2px 7px", background: modalidadBg[job.modalidad] || "#F3F4F6", color: modalidadColor[job.modalidad] || "#374151", fontWeight: 700 }}>
-                              {job.modalidad === "remoto" ? "🌎 Remoto" : "📍 Presencial"}
-                            </span>
-                            <span style={{ fontSize: 10, padding: "2px 7px", background: "#F3F4F6", color: "#6B7280", fontWeight: 500 }}>{job.plataforma}</span>
-                          </div>
-                          <button onClick={() => toggleFavorito(job.id)}
-                            style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: favoritos.includes(job.id) ? "#F59E0B" : "#D1D5DB", lineHeight: 1, padding: 0 }}>★</button>
-                        </div>
-
-                        <div>
-                          <h3 style={{ margin: "0 0 2px", fontSize: 14, fontWeight: 700, color: "#1a1a2e" }}>{job.titulo}</h3>
-                          <p style={{ margin: "0 0 2px", fontSize: 12, color: "#4F46E5", fontWeight: 600 }}>{job.empresa}</p>
-                          <p style={{ margin: 0, fontSize: 11, color: "#9CA3AF" }}>📍 {job.ubicacion}</p>
-                        </div>
-
-                        <p style={{ margin: 0, fontSize: 12, color: "#374151", lineHeight: 1.6 }}>{job.descripcion}</p>
-
-                        {job.salarioMXN && job.salarioMXN !== "Ver en plataforma" && job.salarioMXN !== "Por proyecto" && (
-                          <p style={{ margin: 0, fontSize: 12, color: "#059669", fontWeight: 700 }}>💰 {job.salarioMXN}</p>
-                        )}
-                        {job.salarioMXN === "Por proyecto" && (
-                          <p style={{ margin: 0, fontSize: 12, color: "#6B7280", fontWeight: 600 }}>💼 Por proyecto</p>
-                        )}
-
-                        <a href={job.url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", padding: "8px 16px", background: "#4F46E5", color: "#fff", textDecoration: "none", fontSize: 11, fontWeight: 700, fontFamily: "'Poppins', sans-serif", marginTop: "auto" }}>
-                          Ver vacantes →
-                        </a>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {!loading && !error && buscado && vacantes.length === 0 && (
-                <div style={{ textAlign: "center", padding: "60px 0", color: "#9CA3AF" }}>
-                  <div style={{ fontSize: 40, marginBottom: 12 }}>🔍</div>
-                  <p style={{ fontSize: 14, color: "#6B7280" }}>No hay vacantes para esa combinación. Prueba con otros filtros.</p>
-                </div>
-              )}
-
-              {!loading && !buscado && (
-                <div style={{ textAlign: "center", padding: "70px 0", color: "#9CA3AF" }}>
-                  <div style={{ fontSize: 44, marginBottom: 14 }}>🔎</div>
-                  <p style={{ fontSize: 14, fontWeight: 500, color: "#6B7280" }}>Selecciona el tipo de puesto y modalidad, luego da clic en Buscar</p>
-                  <p style={{ fontSize: 12 }}>LinkedIn · Indeed · OCC · Computrabajo · ZipRecruiter · Glassdoor · RemoteOK · Upwork · Workana · Google Jobs</p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {tab === "favoritos" && (
-            <div>
-              <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16 }}>⭐ Plataformas Favoritas</h2>
-              {favoritos.length === 0 ? (
-                <div style={{ textAlign: "center", padding: "60px 0", color: "#9CA3AF" }}>
-                  <div style={{ fontSize: 40, marginBottom: 12 }}>⭐</div>
-                  <p style={{ fontSize: 14 }}>No tienes favoritas aún. Busca y marca con ★</p>
-                </div>
-              ) : (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
-                  {vacantes.filter(v => favoritos.includes(v.id)).length > 0
-                    ? vacantes.filter(v => favoritos.includes(v.id)).map(job => (
-                      <div key={job.id} style={{ background: "#fff", border: "2px solid #FDE68A", padding: "16px 18px" }}>
-                        <h3 style={{ margin: "0 0 3px", fontSize: 13, fontWeight: 700 }}>{job.titulo}</h3>
-                        <p style={{ margin: "0 0 4px", fontSize: 12, color: "#4F46E5", fontWeight: 600 }}>{job.empresa}</p>
-                        <p style={{ margin: "0 0 10px", fontSize: 11, color: "#9CA3AF" }}>📍 {job.ubicacion}</p>
-                        <div style={{ display: "flex", gap: 6 }}>
-                          <a href={job.url} target="_blank" rel="noopener noreferrer"
-                            style={{ padding: "6px 14px", background: "#4F46E5", color: "#fff", textDecoration: "none", fontSize: 11, fontWeight: 700, fontFamily: "'Poppins', sans-serif" }}>Ver →</a>
-                          <button onClick={() => toggleFavorito(job.id)}
-                            style={{ padding: "6px 10px", background: "#fff", border: "2px solid #FCA5A5", fontSize: 11, cursor: "pointer", fontFamily: "'Poppins', sans-serif", color: "#DC2626", fontWeight: 600 }}>Quitar ★</button>
-                        </div>
-                      </div>
-                    ))
-                    : (
-                      <div style={{ gridColumn: "1/-1", textAlign: "center", padding: "40px 0", color: "#9CA3AF" }}>
-                        <p style={{ fontSize: 13 }}>Haz una búsqueda primero para ver tus favoritas aquí.</p>
-                      </div>
-                    )
-                  }
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    </>
-  );
+  res.status(405).json({ error: "Method not allowed" });
 }
