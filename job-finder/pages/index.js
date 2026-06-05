@@ -1,45 +1,52 @@
 import { useState, useEffect } from "react";
 import Head from "next/head";
 
-const COLUMNAS = [
-  { key: "interesante", label: "⭐ Interesante", color: "#4F46E5" },
-  { key: "aplicada", label: "📤 Aplicada", color: "#0891B2" },
-  { key: "proceso", label: "⚙️ En Proceso", color: "#D97706" },
-  { key: "rechazada", label: "❌ Rechazada", color: "#DC2626" },
+const TIPOS = [
+  { key: "todos", label: "🔍 Todos" },
+  { key: "paralegal", label: "⚖️ Paralegal / Legal" },
+  { key: "asistente", label: "📋 Asistente Bilingüe" },
+  { key: "teacher", label: "👩‍🏫 English Teacher" },
+  { key: "interprete", label: "🗣️ Intérprete / Traductora" },
+  { key: "atencion", label: "📞 Atención a Clientes" },
+];
+
+const MODALIDADES = [
+  { key: "todos", label: "🌐 Todas" },
+  { key: "remoto", label: "🌎 Remoto / Home Office" },
+  { key: "presencial", label: "📍 Presencial Zona Oriente" },
 ];
 
 export default function Home() {
   const [tab, setTab] = useState("buscar");
-  const [modoTrabajo, setModoTrabajo] = useState("remoto");
+  const [tipo, setTipo] = useState("todos");
+  const [modalidad, setModalidad] = useState("todos");
   const [vacantes, setVacantes] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [loadingCarta, setLoadingCarta] = useState(null);
   const [error, setError] = useState(null);
   const [favoritos, setFavoritos] = useState([]);
-  const [kanban, setKanban] = useState({ interesante: [], aplicada: [], proceso: [], rechazada: [] });
-  const [cartas, setCartas] = useState({});
-  const [cartaModal, setCartaModal] = useState(null);
-  const [copied, setCopied] = useState(false);
+  const [tipoCambio, setTipoCambio] = useState(null);
+  const [buscado, setBuscado] = useState(false);
 
   useEffect(() => {
     fetch("/api/search").then(r => r.json()).then(d => {
       setFavoritos(d.favoritos || []);
-      setKanban(d.kanban || { interesante: [], aplicada: [], proceso: [], rechazada: [] });
     });
   }, []);
 
-  const search = async (tipo) => {
+  const search = async (t, m) => {
     setLoading(true);
     setVacantes([]);
     setError(null);
+    setBuscado(true);
     try {
       const res = await fetch("/api/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "search", data: { tipo } })
+        body: JSON.stringify({ action: "search", data: { tipo: t || tipo, modalidad: m || modalidad } })
       });
       const d = await res.json();
       setVacantes(d.vacantes || []);
+      setTipoCambio(d.tipoCambio);
     } catch { setError("Error al buscar. Intenta de nuevo."); }
     finally { setLoading(false); }
   };
@@ -54,51 +61,19 @@ export default function Home() {
     setFavoritos(d.favoritos || []);
   };
 
-  const moverKanban = async (vacante, columna) => {
-    const res = await fetch("/api/search", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "kanban_move", data: { id: vacante.id, columna, titulo: vacante.titulo, empresa: vacante.empresa, url: vacante.url } })
-    });
-    const d = await res.json();
-    setKanban(d.kanban || {});
-  };
+  const vacantesFavoritas = vacantes.filter(v => favoritos.includes(v.id));
+  const modalidadColor = { remoto: "#16A34A", presencial: "#D97706" };
+  const modalidadBg = { remoto: "#F0FDF4", presencial: "#FEF3C7" };
 
-  const generarCarta = async (vacante) => {
-    if (cartas[vacante.id]) { setCartaModal(cartas[vacante.id]); return; }
-    setLoadingCarta(vacante.id);
-    try {
-      const res = await fetch("/api/search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "carta", data: { vacante } })
-      });
-      const d = await res.json();
-      setCartas(prev => ({ ...prev, [vacante.id]: d.carta }));
-      setCartaModal(d.carta);
-    } catch { alert("Error generando carta"); }
-    finally { setLoadingCarta(null); }
-  };
-
-  const totalKanban = Object.values(kanban).reduce((a, b) => a + b.length, 0);
-
-  const modoColor = { remoto: "#4F46E5", presencial: "#059669", casa: "#D97706" };
-
-  const ModoBtn = ({ modo, emoji, label }) => (
-    <button onClick={() => { setModoTrabajo(modo); setVacantes([]); if (modo === "casa") search("casa"); }}
-      style={{ padding: "8px 18px", fontFamily: "'Poppins', sans-serif", fontSize: 12, fontWeight: 700, cursor: "pointer", background: modoTrabajo === modo ? modoColor[modo] : "#fff", color: modoTrabajo === modo ? "#fff" : "#374151", border: `2px solid ${modoTrabajo === modo ? modoColor[modo] : "#E5E7EB"}`, transition: "all 0.15s" }}>
-      {emoji} {label}
-    </button>
+  const FilterBtn = ({ active, onClick, children, activeColor = "#4F46E5" }) => (
+    <button onClick={onClick} style={{
+      padding: "7px 14px", fontFamily: "'Poppins', sans-serif", fontSize: 12, fontWeight: 600,
+      cursor: "pointer", transition: "all 0.15s",
+      background: active ? activeColor : "#fff",
+      color: active ? "#fff" : "#374151",
+      border: `2px solid ${active ? activeColor : "#E5E7EB"}`,
+    }}>{children}</button>
   );
-
-  const NavBtn = ({ t, label }) => (
-    <button onClick={() => setTab(t)} style={{ padding: "8px 18px", fontFamily: "'Poppins', sans-serif", fontSize: 12, fontWeight: 600, cursor: "pointer", background: tab === t ? "#4F46E5" : "transparent", color: tab === t ? "#fff" : "#6B7280", border: tab === t ? "2px solid #4F46E5" : "2px solid transparent", transition: "all 0.15s" }}>
-      {label}
-    </button>
-  );
-
-  const modalidadColor = { "Remoto": "#F0FDF4", "Home Office": "#EFF6FF", "Presencial": "#FEF3C7" };
-  const modalidadText = { "Remoto": "#16A34A", "Home Office": "#1D4ED8", "Presencial": "#D97706" };
 
   return (
     <>
@@ -111,25 +86,46 @@ export default function Home() {
         {/* Header */}
         <div style={{ background: "#fff", borderBottom: "2px solid #E8EAED", padding: "14px 28px" }}>
           <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-              <div style={{ width: 38, height: 38, background: "#4F46E5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>🔎</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+              <div style={{ width: 38, height: 38, background: "#4F46E5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>🔎</div>
               <div style={{ flex: 1 }}>
                 <h1 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Job Finder · Rocío Sánchez</h1>
-                <p style={{ margin: 0, fontSize: 11, color: "#6B7280" }}>Paralegal Bilingüe · Legal Assistant · English Teacher · Intérprete · Zona Oriente / Remoto</p>
+                <p style={{ margin: 0, fontSize: 11, color: "#6B7280" }}>Paralegal · Asistente Bilingüe · English Teacher · Intérprete · Atención a Clientes</p>
               </div>
               <div style={{ display: "flex", gap: 4 }}>
-                <NavBtn t="buscar" label="🔍 Buscar" />
-                <NavBtn t="favoritos" label={`⭐ Favoritos${favoritos.length > 0 ? ` (${favoritos.length})` : ""}`} />
-                <NavBtn t="kanban" label={`📋 Seguimiento${totalKanban > 0 ? ` (${totalKanban})` : ""}`} />
+                <button onClick={() => setTab("buscar")} style={{ padding: "8px 16px", fontFamily: "'Poppins', sans-serif", fontSize: 12, fontWeight: 600, cursor: "pointer", background: tab === "buscar" ? "#4F46E5" : "transparent", color: tab === "buscar" ? "#fff" : "#6B7280", border: tab === "buscar" ? "2px solid #4F46E5" : "2px solid transparent" }}>🔍 Buscar</button>
+                <button onClick={() => setTab("favoritos")} style={{ padding: "8px 16px", fontFamily: "'Poppins', sans-serif", fontSize: 12, fontWeight: 600, cursor: "pointer", background: tab === "favoritos" ? "#4F46E5" : "transparent", color: tab === "favoritos" ? "#fff" : "#6B7280", border: tab === "favoritos" ? "2px solid #4F46E5" : "2px solid transparent" }}>⭐ Favoritos {favoritos.length > 0 ? `(${favoritos.length})` : ""}</button>
               </div>
             </div>
 
             {tab === "buscar" && (
-              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                <span style={{ fontSize: 11, color: "#9CA3AF", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Modalidad:</span>
-                <ModoBtn modo="remoto" emoji="🌎" label="Remoto / Home Office" />
-                <ModoBtn modo="presencial" emoji="📍" label="Presencial Zona Oriente" />
-                <ModoBtn modo="casa" emoji="🏠" label="Cerca de Casa" />
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {/* Tipo de puesto */}
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+                  <span style={{ fontSize: 11, color: "#9CA3AF", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", minWidth: 80 }}>Puesto:</span>
+                  {TIPOS.map(t => (
+                    <FilterBtn key={t.key} active={tipo === t.key} onClick={() => setTipo(t.key)}>{t.label}</FilterBtn>
+                  ))}
+                </div>
+                {/* Modalidad */}
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+                  <span style={{ fontSize: 11, color: "#9CA3AF", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", minWidth: 80 }}>Modalidad:</span>
+                  {MODALIDADES.map(m => (
+                    <FilterBtn key={m.key} active={modalidad === m.key} onClick={() => setModalidad(m.key)} activeColor={m.key === "presencial" ? "#D97706" : "#4F46E5"}>{m.label}</FilterBtn>
+                  ))}
+                  <FilterBtn active={false} onClick={() => { setTipo("todos"); setModalidad("presencial"); search("todos", "presencial"); }} activeColor="#D97706">🏠 Cerca de Casa</FilterBtn>
+                </div>
+                {/* Botón buscar */}
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <button onClick={() => search()} disabled={loading} style={{ padding: "10px 28px", background: "#4F46E5", color: "#fff", border: "none", fontFamily: "'Poppins', sans-serif", fontSize: 13, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1 }}>
+                    {loading ? "⏳ Buscando..." : "Buscar →"}
+                  </button>
+                  {tipoCambio && (
+                    <span style={{ fontSize: 11, color: "#059669", fontWeight: 700, background: "#F0FDF4", padding: "4px 10px", border: "1px solid #BBF7D0" }}>
+                      💵 $1 USD = ${tipoCambio.toFixed(2)} MXN hoy
+                    </span>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -140,25 +136,6 @@ export default function Home() {
           {/* TAB BUSCAR */}
           {tab === "buscar" && (
             <div>
-              {modoTrabajo !== "casa" && (
-                <div style={{ marginBottom: 20 }}>
-                  <p style={{ fontSize: 11, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>
-                    {modoTrabajo === "remoto" ? "Buscar vacantes remotas" : "Buscar vacantes zona oriente"}
-                  </p>
-                  <button onClick={() => search(modoTrabajo)} disabled={loading}
-                    style={{ padding: "12px 28px", background: modoColor[modoTrabajo], color: "#fff", border: "none", fontFamily: "'Poppins', sans-serif", fontSize: 14, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1 }}>
-                    {loading ? "⏳ Buscando..." : modoTrabajo === "remoto" ? "🌎 Ver todas las plataformas remotas" : "📍 Ver empleos zona oriente"}
-                  </button>
-                </div>
-              )}
-
-              {modoTrabajo === "casa" && !loading && vacantes.length === 0 && (
-                <div style={{ textAlign: "center", padding: "40px 0" }}>
-                  <div style={{ fontSize: 40, marginBottom: 12 }}>🏠</div>
-                  <p style={{ fontSize: 14, color: "#6B7280" }}>Cargando empleos cerca de casa...</p>
-                </div>
-              )}
-
               {loading && (
                 <div style={{ textAlign: "center", padding: "60px 0" }}>
                   <div style={{ fontSize: 30, display: "inline-block", animation: "spin 1s linear infinite" }}>⚙️</div>
@@ -172,66 +149,61 @@ export default function Home() {
               {!loading && vacantes.length > 0 && (
                 <div>
                   <p style={{ fontSize: 13, color: "#6B7280", marginBottom: 16 }}>
-                    <strong style={{ color: "#1a1a2e" }}>{vacantes.length} plataformas</strong> · ordenadas por match con tu perfil
+                    <strong style={{ color: "#1a1a2e" }}>{vacantes.length} plataformas</strong> encontradas
                   </p>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(310px, 1fr))", gap: 14 }}>
                     {vacantes.map(job => (
-                      <div key={job.id} style={{ background: "#fff", border: "2px solid #E5E7EB", padding: "16px 18px", transition: "border-color 0.15s", display: "flex", flexDirection: "column", gap: 10 }}
+                      <div key={job.id} style={{ background: "#fff", border: "2px solid #E5E7EB", padding: "16px 18px", display: "flex", flexDirection: "column", gap: 10, transition: "border-color 0.15s" }}
                         onMouseEnter={e => e.currentTarget.style.borderColor = "#4F46E5"}
                         onMouseLeave={e => e.currentTarget.style.borderColor = "#E5E7EB"}>
 
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                           <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-                            <span style={{ fontSize: 10, padding: "2px 7px", background: "#EEF2FF", color: "#4F46E5", fontWeight: 700 }}>⚡ {job.match}% match</span>
-                            <span style={{ fontSize: 10, padding: "2px 7px", background: modalidadColor[job.modalidad] || "#F3F4F6", color: modalidadText[job.modalidad] || "#374151", fontWeight: 600 }}>{job.modalidad}</span>
+                            <span style={{ fontSize: 10, padding: "2px 7px", background: modalidadBg[job.modalidad] || "#F3F4F6", color: modalidadColor[job.modalidad] || "#374151", fontWeight: 700 }}>
+                              {job.modalidad === "remoto" ? "🌎 Remoto" : "📍 Presencial"}
+                            </span>
+                            <span style={{ fontSize: 10, padding: "2px 7px", background: "#F3F4F6", color: "#6B7280", fontWeight: 500 }}>{job.plataforma}</span>
                           </div>
                           <button onClick={() => toggleFavorito(job.id)}
-                            style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: favoritos.includes(job.id) ? "#F59E0B" : "#D1D5DB", lineHeight: 1 }}>★</button>
+                            style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: favoritos.includes(job.id) ? "#F59E0B" : "#D1D5DB", lineHeight: 1, padding: 0 }}>★</button>
                         </div>
 
                         <div>
                           <h3 style={{ margin: "0 0 2px", fontSize: 14, fontWeight: 700, color: "#1a1a2e" }}>{job.titulo}</h3>
                           <p style={{ margin: "0 0 2px", fontSize: 12, color: "#4F46E5", fontWeight: 600 }}>{job.empresa}</p>
-                          <p style={{ margin: 0, fontSize: 11, color: "#9CA3AF" }}>📍 {job.ubicacion} · {job.plataforma}</p>
+                          <p style={{ margin: 0, fontSize: 11, color: "#9CA3AF" }}>📍 {job.ubicacion}</p>
                         </div>
 
                         <p style={{ margin: 0, fontSize: 12, color: "#374151", lineHeight: 1.6 }}>{job.descripcion}</p>
 
-                        {job.salario !== "Ver en plataforma" && job.salario !== "Por proyecto" && (
-                          <p style={{ margin: 0, fontSize: 12, color: "#059669", fontWeight: 700 }}>💰 {job.salario}</p>
+                        {job.salarioMXN && job.salarioMXN !== "Ver en plataforma" && job.salarioMXN !== "Por proyecto" && (
+                          <p style={{ margin: 0, fontSize: 12, color: "#059669", fontWeight: 700 }}>💰 {job.salarioMXN}</p>
                         )}
-                        {job.salario === "Por proyecto" && (
-                          <p style={{ margin: 0, fontSize: 12, color: "#6B7280", fontWeight: 600 }}>💼 {job.salario}</p>
+                        {job.salarioMXN === "Por proyecto" && (
+                          <p style={{ margin: 0, fontSize: 12, color: "#6B7280", fontWeight: 600 }}>💼 Por proyecto</p>
                         )}
 
-                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: "auto", paddingTop: 4 }}>
-                          <a href={job.url} target="_blank" rel="noopener noreferrer"
-                            style={{ padding: "7px 14px", background: "#4F46E5", color: "#fff", textDecoration: "none", fontSize: 11, fontWeight: 700, fontFamily: "'Poppins', sans-serif" }}>
-                            Ver vacantes →
-                          </a>
-                          <button onClick={() => moverKanban(job, "interesante")}
-                            style={{ padding: "7px 10px", background: "#fff", border: "2px solid #E5E7EB", fontSize: 11, cursor: "pointer", fontFamily: "'Poppins', sans-serif", fontWeight: 500 }}>
-                            + Seguimiento
-                          </button>
-                          <button onClick={() => generarCarta(job)} disabled={loadingCarta === job.id}
-                            style={{ padding: "7px 10px", background: "#fff", border: "2px solid #E5E7EB", fontSize: 11, cursor: "pointer", fontFamily: "'Poppins', sans-serif", fontWeight: 500 }}>
-                            {loadingCarta === job.id ? "⏳" : "✉️ Carta"}
-                          </button>
-                        </div>
+                        <a href={job.url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", padding: "8px 16px", background: "#4F46E5", color: "#fff", textDecoration: "none", fontSize: 11, fontWeight: 700, fontFamily: "'Poppins', sans-serif", marginTop: "auto" }}>
+                          Ver vacantes →
+                        </a>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
 
-              {!loading && !error && vacantes.length === 0 && modoTrabajo !== "casa" && (
+              {!loading && !error && buscado && vacantes.length === 0 && (
+                <div style={{ textAlign: "center", padding: "60px 0", color: "#9CA3AF" }}>
+                  <div style={{ fontSize: 40, marginBottom: 12 }}>🔍</div>
+                  <p style={{ fontSize: 14, color: "#6B7280" }}>No hay vacantes para esa combinación. Prueba con otros filtros.</p>
+                </div>
+              )}
+
+              {!loading && !buscado && (
                 <div style={{ textAlign: "center", padding: "70px 0", color: "#9CA3AF" }}>
-                  <div style={{ fontSize: 44, marginBottom: 14 }}>
-                    {modoTrabajo === "remoto" ? "🌎" : "📍"}
-                  </div>
-                  <p style={{ fontSize: 14, fontWeight: 500, color: "#6B7280" }}>
-                    {modoTrabajo === "remoto" ? "Da clic en el botón para ver todas las plataformas remotas" : "Da clic para ver empleos en zona oriente"}
-                  </p>
+                  <div style={{ fontSize: 44, marginBottom: 14 }}>🔎</div>
+                  <p style={{ fontSize: 14, fontWeight: 500, color: "#6B7280" }}>Selecciona el tipo de puesto y modalidad, luego da clic en Buscar</p>
+                  <p style={{ fontSize: 12 }}>LinkedIn · Indeed · OCC · Computrabajo · ZipRecruiter · Glassdoor · RemoteOK · Upwork · Workana y más</p>
                 </div>
               )}
             </div>
@@ -248,83 +220,32 @@ export default function Home() {
                 </div>
               ) : (
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
-                  {vacantes.filter(v => favoritos.includes(v.id)).map(job => (
-                    <div key={job.id} style={{ background: "#fff", border: "2px solid #FDE68A", padding: "16px 18px" }}>
-                      <h3 style={{ margin: "0 0 3px", fontSize: 13, fontWeight: 700 }}>{job.titulo}</h3>
-                      <p style={{ margin: "0 0 10px", fontSize: 12, color: "#4F46E5", fontWeight: 600 }}>{job.empresa}</p>
-                      <div style={{ display: "flex", gap: 6 }}>
-                        <a href={job.url} target="_blank" rel="noopener noreferrer"
-                          style={{ padding: "6px 14px", background: "#4F46E5", color: "#fff", textDecoration: "none", fontSize: 11, fontWeight: 700, fontFamily: "'Poppins', sans-serif" }}>Ver →</a>
-                        <button onClick={() => toggleFavorito(job.id)}
-                          style={{ padding: "6px 10px", background: "#fff", border: "2px solid #FCA5A5", fontSize: 11, cursor: "pointer", fontFamily: "'Poppins', sans-serif", color: "#DC2626", fontWeight: 600 }}>Quitar ★</button>
+                  {vacantes.filter(v => favoritos.includes(v.id)).length > 0
+                    ? vacantes.filter(v => favoritos.includes(v.id)).map(job => (
+                      <div key={job.id} style={{ background: "#fff", border: "2px solid #FDE68A", padding: "16px 18px" }}>
+                        <h3 style={{ margin: "0 0 3px", fontSize: 13, fontWeight: 700 }}>{job.titulo}</h3>
+                        <p style={{ margin: "0 0 4px", fontSize: 12, color: "#4F46E5", fontWeight: 600 }}>{job.empresa}</p>
+                        <p style={{ margin: "0 0 10px", fontSize: 11, color: "#9CA3AF" }}>📍 {job.ubicacion}</p>
+                        <div style={{ display: "flex", gap: 6 }}>
+                          <a href={job.url} target="_blank" rel="noopener noreferrer"
+                            style={{ padding: "6px 14px", background: "#4F46E5", color: "#fff", textDecoration: "none", fontSize: 11, fontWeight: 700, fontFamily: "'Poppins', sans-serif" }}>Ver →</a>
+                          <button onClick={() => toggleFavorito(job.id)}
+                            style={{ padding: "6px 10px", background: "#fff", border: "2px solid #FCA5A5", fontSize: 11, cursor: "pointer", fontFamily: "'Poppins', sans-serif", color: "#DC2626", fontWeight: 600 }}>Quitar ★</button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))
+                    : (
+                      <div style={{ gridColumn: "1/-1", textAlign: "center", padding: "40px 0", color: "#9CA3AF" }}>
+                        <p style={{ fontSize: 13 }}>Haz una búsqueda primero para ver tus favoritas aquí.</p>
+                      </div>
+                    )
+                  }
                 </div>
               )}
             </div>
           )}
-
-          {/* TAB KANBAN */}
-          {tab === "kanban" && (
-            <div>
-              <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16 }}>📋 Seguimiento de Aplicaciones</h2>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
-                {COLUMNAS.map(col => (
-                  <div key={col.key} style={{ background: "#fff", border: `2px solid ${col.color}`, padding: "14px" }}>
-                    <h3 style={{ margin: "0 0 12px", fontSize: 12, fontWeight: 700, color: col.color }}>
-                      {col.label} <span style={{ fontWeight: 400, color: "#9CA3AF" }}>({(kanban[col.key] || []).length})</span>
-                    </h3>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                      {(kanban[col.key] || []).map(v => (
-                        <div key={v.id} style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", padding: "10px 12px" }}>
-                          <p style={{ margin: "0 0 3px", fontSize: 11, fontWeight: 700 }}>{v.titulo}</p>
-                          <p style={{ margin: "0 0 8px", fontSize: 10, color: "#6B7280" }}>{v.empresa}</p>
-                          <div style={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
-                            {COLUMNAS.filter(c => c.key !== col.key).map(c => (
-                              <button key={c.key} onClick={() => moverKanban(v, c.key)}
-                                style={{ padding: "2px 6px", fontSize: 9, background: "#fff", border: `1px solid ${c.color}`, color: c.color, cursor: "pointer", fontFamily: "'Poppins', sans-serif", fontWeight: 600 }}>
-                                {c.label.split(" ")[1]}
-                              </button>
-                            ))}
-                            <button onClick={() => moverKanban(v, null)}
-                              style={{ padding: "2px 6px", fontSize: 9, background: "#fff", border: "1px solid #E5E7EB", color: "#9CA3AF", cursor: "pointer", fontFamily: "'Poppins', sans-serif" }}>
-                              ✕
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                      {(kanban[col.key] || []).length === 0 && (
-                        <p style={{ fontSize: 11, color: "#E5E7EB", textAlign: "center", padding: "16px 0" }}>Vacío</p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       </div>
-
-      {/* Modal carta */}
-      {cartaModal && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999, padding: 20 }}>
-          <div style={{ background: "#fff", maxWidth: 580, width: "100%", padding: "24px", maxHeight: "80vh", overflowY: "auto" }}>
-            <h3 style={{ margin: "0 0 14px", fontSize: 15, fontWeight: 700 }}>✉️ Carta de Presentación</h3>
-            <pre style={{ fontSize: 12, lineHeight: 1.7, whiteSpace: "pre-wrap", fontFamily: "'Poppins', sans-serif", color: "#374151", margin: "0 0 16px" }}>{cartaModal}</pre>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={() => { navigator.clipboard.writeText(cartaModal); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
-                style={{ padding: "9px 18px", background: copied ? "#059669" : "#4F46E5", color: "#fff", border: "none", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'Poppins', sans-serif", transition: "background 0.2s" }}>
-                {copied ? "✓ Copiado" : "Copiar"}
-              </button>
-              <button onClick={() => setCartaModal(null)}
-                style={{ padding: "9px 18px", background: "#fff", border: "2px solid #E5E7EB", fontSize: 12, cursor: "pointer", fontFamily: "'Poppins', sans-serif", fontWeight: 500 }}>
-                Cerrar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }
