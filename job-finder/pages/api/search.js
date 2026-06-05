@@ -31,7 +31,7 @@ const convertirSalario = (salario, tc) => {
 };
 
 // Generador de URLs por plataforma
-const gj = (q, zona) => `https://www.google.com/search?q=${encodeURIComponent(q + " " + zona)}&ibp=htl;jobs`;
+const gj = (q) => `https://www.google.com/search?q=${encodeURIComponent(q)}&ibp=htl;jobs&htichips=date_posted:week`;
 const gjR = (q) => `https://www.google.com/search?q=${encodeURIComponent(q + " remoto")}&ibp=htl;jobs&htichips=employment_type:TELECOMMUTE,date_posted:week`;
 const indeed = (q, zona) => `https://www.indeed.com/jobs?q=${encodeURIComponent(q)}&l=${encodeURIComponent(zona + ", Mexico")}&sort=date`;
 const indeedR = (q) => `https://www.indeed.com/jobs?q=${encodeURIComponent(q)}&sc=0kf%3Aattr(DSQF7)%3B&sort=date`;
@@ -64,7 +64,7 @@ let pid = 1000;
 PUESTOS.forEach(puesto => {
   ZONAS.forEach(zona => {
     // Google Jobs
-    PRESENCIALES.push({ id: `p${pid++}`, tipo: puesto.tipo, modalidad: "presencial", titulo: `${puesto.label} · ${zona.short} · Google Jobs`, empresa: "Google Jobs", plataforma: "Google Jobs", ubicacion: `Presencial · ${zona.label}`, descripcion: `Búsqueda directa en Google Jobs para ${puesto.label} en ${zona.short}. Verifica la ubicación exacta de cada vacante antes de postularte.`, url: gj(puesto.queries.gj, zona.short), salario: "Ver en plataforma" });
+    PRESENCIALES.push({ id: `p${pid++}`, tipo: puesto.tipo, modalidad: "presencial", titulo: `${puesto.label} · ${zona.short} · Google Jobs`, empresa: "Google Jobs", plataforma: "Google Jobs", ubicacion: `Presencial · ${zona.label}`, descripcion: `Búsqueda en Google Jobs para ${puesto.label}. Filtra por empresa o ubicación al abrir. Verifica que sea cerca de ${zona.short} antes de postularte.`, url: gj(puesto.queries.gj), salario: "Ver en plataforma" });
     // Indeed
     PRESENCIALES.push({ id: `p${pid++}`, tipo: puesto.tipo, modalidad: "presencial", titulo: `${puesto.label} · ${zona.short} · Indeed`, empresa: "Indeed", plataforma: "Indeed", ubicacion: `Presencial · ${zona.label}`, descripcion: `Indeed filtrando por ${zona.short}. Ordena por fecha para ver las más recientes. Verifica ubicación antes de postularte.`, url: indeed(puesto.queries.indeed, zona.short), salario: "Ver en plataforma" });
     // OCC
