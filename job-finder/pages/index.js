@@ -1,6 +1,22 @@
 import { useState, useEffect } from "react";
 import Head from "next/head";
 
+const EMPRESAS = [
+  { key: "todos", label: "🏢 Todas" },
+  { key: "Google Jobs", label: "🔍 Google Jobs" },
+  { key: "Indeed", label: "🟦 Indeed" },
+  { key: "OCC Mundial", label: "🟠 OCC" },
+  { key: "Computrabajo", label: "🟡 Computrabajo" },
+  { key: "LinkedIn", label: "🔵 LinkedIn" },
+  { key: "ZipRecruiter", label: "⚡ ZipRecruiter" },
+  { key: "Glassdoor", label: "🟢 Glassdoor" },
+  { key: "RemoteOK", label: "🌐 RemoteOK" },
+  { key: "Upwork", label: "🟤 Upwork" },
+  { key: "Workana", label: "🟣 Workana" },
+  { key: "Hireline", label: "💎 Hireline" },
+  { key: "WeWorkRemotely", label: "🏠 WeWorkRemotely" },
+];
+
 const TIPOS = [
   { key: "todos", label: "🔍 Todos" },
   { key: "paralegal", label: "⚖️ Paralegal / Legal" },
@@ -25,6 +41,7 @@ export default function Home() {
   const [error, setError] = useState(null);
   const [favoritos, setFavoritos] = useState([]);
   const [tipoCambio, setTipoCambio] = useState(null);
+  const [empresa, setEmpresa] = useState("todos");
   const [buscado, setBuscado] = useState(false);
 
   useEffect(() => {
@@ -61,7 +78,7 @@ export default function Home() {
     setFavoritos(d.favoritos || []);
   };
 
-  const modalidadColor = { remoto: "#16A34A", presencial: "#D97706" };
+  const vacantesFiltradas = empresa === "todos" ? vacantes : vacantes.filter(v => v.empresa === empresa || v.plataforma === empresa);
   const modalidadBg = { remoto: "#F0FDF4", presencial: "#FEF3C7" };
 
   const FilterBtn = ({ active, onClick, children, activeColor = "#4F46E5" }) => (
@@ -118,6 +135,12 @@ export default function Home() {
                     <FilterBtn key={m.key} active={modalidad === m.key} onClick={() => setModalidad(m.key)} activeColor={m.key === "presencial" ? "#D97706" : "#4F46E5"}>{m.label}</FilterBtn>
                   ))}
                 </div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+                  <span style={{ fontSize: 11, color: "#9CA3AF", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", minWidth: 80 }}>Empresa:</span>
+                  {EMPRESAS.map(e => (
+                    <FilterBtn key={e.key} active={empresa === e.key} onClick={() => setEmpresa(e.key)} activeColor="#6D28D9">{e.label}</FilterBtn>
+                  ))}
+                </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                   <button onClick={() => search()} disabled={loading} style={{ padding: "10px 28px", background: "#4F46E5", color: "#fff", border: "none", fontFamily: "'Poppins', sans-serif", fontSize: 13, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1 }}>
                     {loading ? "⏳ Buscando..." : "Buscar →"}
@@ -147,13 +170,13 @@ export default function Home() {
 
               {error && <div style={{ background: "#FEF2F2", border: "2px solid #FCA5A5", padding: "14px 18px", color: "#B91C1C", fontSize: 13 }}>⚠️ {error}</div>}
 
-              {!loading && vacantes.length > 0 && (
+              {!loading && vacantesFiltradas.length > 0 && (
                 <div>
                   <p style={{ fontSize: 13, color: "#6B7280", marginBottom: 16 }}>
-                    <strong style={{ color: "#1a1a2e" }}>{vacantes.length} plataformas</strong> encontradas
+                    <strong style={{ color: "#1a1a2e" }}>{vacantesFiltradas.length} plataformas</strong> encontradas
                   </p>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(310px, 1fr))", gap: 14 }}>
-                    {vacantes.map(job => (
+                    {vacantesFiltradas.map(job => (
                       <div key={job.id} style={{ background: "#fff", border: "2px solid #E5E7EB", padding: "16px 18px", display: "flex", flexDirection: "column", gap: 10, transition: "border-color 0.15s" }}
                         onMouseEnter={e => e.currentTarget.style.borderColor = "#4F46E5"}
                         onMouseLeave={e => e.currentTarget.style.borderColor = "#E5E7EB"}>
