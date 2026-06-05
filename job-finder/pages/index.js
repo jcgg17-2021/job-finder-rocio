@@ -42,7 +42,7 @@ export default function Home() {
       const res = await fetch("/api/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "search", data: { tipo: t || tipo, modalidad: m || modalidad } })
+        body: JSON.stringify({ action: "search", data: { tipo: t !== undefined ? t : tipo, modalidad: m !== undefined ? m : modalidad } })
       });
       const d = await res.json();
       setVacantes(d.vacantes || []);
@@ -61,7 +61,6 @@ export default function Home() {
     setFavoritos(d.favoritos || []);
   };
 
-  const vacantesFavoritas = vacantes.filter(v => favoritos.includes(v.id));
   const modalidadColor = { remoto: "#16A34A", presencial: "#D97706" };
   const modalidadBg = { remoto: "#F0FDF4", presencial: "#FEF3C7" };
 
@@ -100,22 +99,18 @@ export default function Home() {
 
             {tab === "buscar" && (
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {/* Tipo de puesto */}
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
                   <span style={{ fontSize: 11, color: "#9CA3AF", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", minWidth: 80 }}>Puesto:</span>
                   {TIPOS.map(t => (
                     <FilterBtn key={t.key} active={tipo === t.key} onClick={() => setTipo(t.key)}>{t.label}</FilterBtn>
                   ))}
                 </div>
-                {/* Modalidad */}
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
                   <span style={{ fontSize: 11, color: "#9CA3AF", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", minWidth: 80 }}>Modalidad:</span>
                   {MODALIDADES.map(m => (
                     <FilterBtn key={m.key} active={modalidad === m.key} onClick={() => setModalidad(m.key)} activeColor={m.key === "presencial" ? "#D97706" : "#4F46E5"}>{m.label}</FilterBtn>
                   ))}
-                  <FilterBtn active={false} onClick={() => { setTipo("todos"); setModalidad("presencial"); search("todos", "presencial"); }} activeColor="#D97706">🏠 Cerca de Casa</FilterBtn>
                 </div>
-                {/* Botón buscar */}
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                   <button onClick={() => search()} disabled={loading} style={{ padding: "10px 28px", background: "#4F46E5", color: "#fff", border: "none", fontFamily: "'Poppins', sans-serif", fontSize: 13, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1 }}>
                     {loading ? "⏳ Buscando..." : "Buscar →"}
@@ -133,7 +128,6 @@ export default function Home() {
 
         <div style={{ maxWidth: 1100, margin: "0 auto", padding: "22px 20px" }}>
 
-          {/* TAB BUSCAR */}
           {tab === "buscar" && (
             <div>
               {loading && (
@@ -203,13 +197,12 @@ export default function Home() {
                 <div style={{ textAlign: "center", padding: "70px 0", color: "#9CA3AF" }}>
                   <div style={{ fontSize: 44, marginBottom: 14 }}>🔎</div>
                   <p style={{ fontSize: 14, fontWeight: 500, color: "#6B7280" }}>Selecciona el tipo de puesto y modalidad, luego da clic en Buscar</p>
-                  <p style={{ fontSize: 12 }}>LinkedIn · Indeed · OCC · Computrabajo · ZipRecruiter · Glassdoor · RemoteOK · Upwork · Workana y más</p>
+                  <p style={{ fontSize: 12 }}>LinkedIn · Indeed · OCC · Computrabajo · ZipRecruiter · Glassdoor · RemoteOK · Upwork · Workana · Google Jobs</p>
                 </div>
               )}
             </div>
           )}
 
-          {/* TAB FAVORITOS */}
           {tab === "favoritos" && (
             <div>
               <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16 }}>⭐ Plataformas Favoritas</h2>
