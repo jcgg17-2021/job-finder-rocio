@@ -82,6 +82,13 @@ export default function Home() {
       </Head>
       <div style={{ fontFamily: "'Poppins', sans-serif", minHeight: "100vh", background: "#F7F8FC" }}>
 
+        {/* Mensaje de amor */}
+        <div style={{ background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", padding: "18px 28px", textAlign: "center" }}>
+          <p style={{ margin: 0, fontSize: 13, color: "#fff", lineHeight: 1.8, maxWidth: 700, marginLeft: "auto", marginRight: "auto" }}>
+            💜 <em>Esto lo hice con todo el amor del mundo para ti, Rocío. Cada búsqueda, cada plataforma, cada detalle fue pensado con la esperanza de que encuentres algo que te haga feliz y que esté a la altura de todo lo que eres y de todo lo que vales. Que este pequeño esfuerzo sea el primer paso hacia algo grande para ti.</em> 💜
+          </p>
+        </div>
+
         {/* Header */}
         <div style={{ background: "#fff", borderBottom: "2px solid #E8EAED", padding: "14px 28px" }}>
           <div style={{ maxWidth: 1100, margin: "0 auto" }}>
