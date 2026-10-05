@@ -27,20 +27,20 @@ const TIPOS = [
 ];
 
 const SUBTYPES = [
-  { key: "", label: "🔍 Todos los puestos" },
-  { key: "Paralegal Inmigración", label: "Paralegal Inmigración" },
-  { key: "Asistente Paralegal Inmigración", label: "Asistente Paralegal Inmigración" },
-  { key: "Immigration Paralegal", label: "Immigration Paralegal" },
-  { key: "Immigration Paralegal Assistant", label: "Immigration Paralegal Assistant" },
-  { key: "Paralegal Propiedad Intelectual", label: "Paralegal Propiedad Intelectual" },
-  { key: "Paralegal Intellectual Property", label: "Paralegal Intellectual Property" },
-  { key: "Asistente Paralegal Propiedad Intelectual", label: "Asistente Paralegal P. Intelectual" },
-  { key: "Paralegal Assistant Intellectual Property", label: "Paralegal Assistant IP" },
-  { key: "Asistente Paralegal Bilingüe", label: "Asistente Paralegal Bilingüe" },
-  { key: "Bilingual Paralegal Assistant", label: "Bilingual Paralegal Assistant" },
-  { key: "Bilingual Legal Assistant", label: "Bilingual Legal Assistant" },
-  { key: "Immigration Paralegal Bilingual", label: "Immigration Paralegal Bilingual" },
-  { key: "HR Assistant Bilingual", label: "HR Assistant Bilingual" },
+  { key: "", label: "🔍 Todos los puestos", tipo: "todos" },
+  { key: "Paralegal Inmigración", label: "Paralegal Inmigración", tipo: "paralegal" },
+  { key: "Asistente Paralegal Inmigración", label: "Asistente Paralegal Inmigración", tipo: "paralegal" },
+  { key: "Immigration Paralegal", label: "Immigration Paralegal", tipo: "paralegal" },
+  { key: "Immigration Paralegal Assistant", label: "Immigration Paralegal Assistant", tipo: "paralegal" },
+  { key: "Paralegal Propiedad Intelectual", label: "Paralegal Propiedad Intelectual", tipo: "paralegal" },
+  { key: "Paralegal Intellectual Property", label: "Paralegal Intellectual Property", tipo: "paralegal" },
+  { key: "Asistente Paralegal Propiedad Intelectual", label: "Asistente Paralegal P. Intelectual", tipo: "paralegal" },
+  { key: "Paralegal Assistant Intellectual Property", label: "Paralegal Assistant IP", tipo: "paralegal" },
+  { key: "Asistente Paralegal Bilingüe", label: "Asistente Paralegal Bilingüe", tipo: "paralegal" },
+  { key: "Bilingual Paralegal Assistant", label: "Bilingual Paralegal Assistant", tipo: "paralegal" },
+  { key: "Bilingual Legal Assistant", label: "Bilingual Legal Assistant", tipo: "paralegal" },
+  { key: "Immigration Paralegal Bilingual", label: "Immigration Paralegal Bilingual", tipo: "paralegal" },
+  { key: "HR Assistant Bilingual", label: "HR Assistant Bilingual", tipo: "asistente" },
 ];
 
 
@@ -104,10 +104,7 @@ export default function Home() {
   const vacantesFiltradas = vacantes
     .filter(v => empresa === "todos" || v.empresa === empresa || v.plataforma === empresa)
 
-    .filter(v => {
-      if (!subtype) return true;
-      return v.titulo.toLowerCase().includes(subtype.toLowerCase());
-    })
+
     .filter(v => {
       if (!keyword.trim()) return true;
       const kw = keyword.toLowerCase();
@@ -166,7 +163,27 @@ export default function Home() {
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
                   <span style={{ fontSize: 11, color: "#9CA3AF", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", minWidth: 80 }}>Puesto:</span>
                   {SUBTYPES.map(s => (
-                    <FilterBtn key={s.key} active={subtype === s.key} onClick={() => setSubtype(s.key)} activeColor="#9D174D">{s.label}</FilterBtn>
+                    <FilterBtn key={s.key} active={subtype === s.key} onClick={async () => {
+                      setSubtype(s.key);
+                      setKeyword(s.key);
+                      const t = (s.tipo && s.tipo !== "todos") ? s.tipo : "todos";
+                      setTipo(t);
+                      setBuscado(true);
+                      setLoading(true);
+                      setVacantes([]);
+                      setError(null);
+                      try {
+                        const res = await fetch("/api/search", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ action: "search", data: { tipo: t, modalidad } })
+                        });
+                        const d = await res.json();
+                        setVacantes(d.vacantes || []);
+                        setTipoCambio(d.tipoCambio);
+                      } catch { setError("Error al buscar."); }
+                      finally { setLoading(false); }
+                    }} activeColor="#9D174D">{s.label}</FilterBtn>
                   ))}
                 </div>
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
