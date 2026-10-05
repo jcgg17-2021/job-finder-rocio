@@ -43,16 +43,7 @@ const SUBTYPES = [
   { key: "HR Assistant Bilingual", label: "HR Assistant Bilingual" },
 ];
 
-const PUESTOS_CV = [
-  { key: "Immigration Paralegal", label: "Immigration Paralegal" },
-  { key: "Removal Defense Paralegal", label: "Removal Defense Paralegal" },
-  { key: "Asylum Paralegal", label: "Asylum Paralegal" },
-  { key: "IP Paralegal / Intellectual Property", label: "IP Paralegal / Intellectual Property" },
-  { key: "Patent Paralegal", label: "Patent Paralegal" },
-  { key: "Bilingual Paralegal", label: "Bilingual Paralegal" },
-  { key: "Bilingual Legal Assistant", label: "Bilingual Legal Assistant" },
-  { key: "HR Assistant Bilingual", label: "HR Assistant Bilingual" },
-];
+
 
 const MODALIDADES = [
   { key: "todos", label: "🌐 Todas" },
@@ -71,7 +62,6 @@ export default function Home() {
   const [favoritos, setFavoritos] = useState([]);
   const [tipoCambio, setTipoCambio] = useState(null);
   const [buscado, setBuscado] = useState(false);
-  const [cvPuesto, setCvPuesto] = useState("");
   const [subtype, setSubtype] = useState("");
   const [keyword, setKeyword] = useState("");
 
@@ -113,10 +103,7 @@ export default function Home() {
   const modalidadBg = { remoto: "#F0FDF4", presencial: "#FEF3C7" };
   const vacantesFiltradas = vacantes
     .filter(v => empresa === "todos" || v.empresa === empresa || v.plataforma === empresa)
-    .filter(v => {
-      if (!cvPuesto) return true;
-      return v.titulo.toLowerCase().includes(cvPuesto.toLowerCase());
-    })
+
     .filter(v => {
       if (!subtype) return true;
       return v.titulo.toLowerCase().includes(subtype.toLowerCase());
@@ -175,13 +162,7 @@ export default function Home() {
                     <FilterBtn key={t.key} active={tipo === t.key} onClick={() => setTipo(t.key)}>{t.label}</FilterBtn>
                   ))}
                 </div>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-                  <span style={{ fontSize: 11, color: "#9CA3AF", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", minWidth: 80 }}>Del CV:</span>
-                  <FilterBtn active={cvPuesto === ""} onClick={() => setCvPuesto("")} activeColor="#7C3AED">🔍 Todos</FilterBtn>
-                  {PUESTOS_CV.map(p => (
-                    <FilterBtn key={p.key} active={cvPuesto === p.key} onClick={() => setCvPuesto(p.key)} activeColor="#7C3AED">{p.label}</FilterBtn>
-                  ))}
-                </div>
+
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
                   <span style={{ fontSize: 11, color: "#9CA3AF", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", minWidth: 80 }}>Puesto:</span>
                   {SUBTYPES.map(s => (
