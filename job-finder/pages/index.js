@@ -1,4 +1,4 @@
- import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import Head from "next/head";
 
 const EMPRESAS = [
@@ -26,6 +26,34 @@ const TIPOS = [
   { key: "atencion", label: "📞 Atención a Clientes" },
 ];
 
+const SUBTYPES = [
+  { key: "", label: "🔍 Todos los puestos" },
+  { key: "Paralegal Inmigración", label: "Paralegal Inmigración" },
+  { key: "Asistente Paralegal Inmigración", label: "Asistente Paralegal Inmigración" },
+  { key: "Immigration Paralegal", label: "Immigration Paralegal" },
+  { key: "Immigration Paralegal Assistant", label: "Immigration Paralegal Assistant" },
+  { key: "Paralegal Propiedad Intelectual", label: "Paralegal Propiedad Intelectual" },
+  { key: "Paralegal Intellectual Property", label: "Paralegal Intellectual Property" },
+  { key: "Asistente Paralegal Propiedad Intelectual", label: "Asistente Paralegal P. Intelectual" },
+  { key: "Paralegal Assistant Intellectual Property", label: "Paralegal Assistant IP" },
+  { key: "Asistente Paralegal Bilingüe", label: "Asistente Paralegal Bilingüe" },
+  { key: "Bilingual Paralegal Assistant", label: "Bilingual Paralegal Assistant" },
+  { key: "Bilingual Legal Assistant", label: "Bilingual Legal Assistant" },
+  { key: "Immigration Paralegal Bilingual", label: "Immigration Paralegal Bilingual" },
+  { key: "HR Assistant Bilingual", label: "HR Assistant Bilingual" },
+];
+
+const PUESTOS_CV = [
+  { key: "Immigration Paralegal", label: "Immigration Paralegal" },
+  { key: "Removal Defense Paralegal", label: "Removal Defense Paralegal" },
+  { key: "Asylum Paralegal", label: "Asylum Paralegal" },
+  { key: "IP Paralegal / Intellectual Property", label: "IP Paralegal / Intellectual Property" },
+  { key: "Patent Paralegal", label: "Patent Paralegal" },
+  { key: "Bilingual Paralegal", label: "Bilingual Paralegal" },
+  { key: "Bilingual Legal Assistant", label: "Bilingual Legal Assistant" },
+  { key: "HR Assistant Bilingual", label: "HR Assistant Bilingual" },
+];
+
 const MODALIDADES = [
   { key: "todos", label: "🌐 Todas" },
   { key: "remoto", label: "🌎 Remoto / Home Office" },
@@ -43,6 +71,9 @@ export default function Home() {
   const [favoritos, setFavoritos] = useState([]);
   const [tipoCambio, setTipoCambio] = useState(null);
   const [buscado, setBuscado] = useState(false);
+  const [cvPuesto, setCvPuesto] = useState("");
+  const [subtype, setSubtype] = useState("");
+  const [keyword, setKeyword] = useState("");
 
   useEffect(() => {
     fetch("/api/search").then(r => r.json()).then(d => {
@@ -80,7 +111,21 @@ export default function Home() {
 
   const modalidadColor = { remoto: "#16A34A", presencial: "#D97706" };
   const modalidadBg = { remoto: "#F0FDF4", presencial: "#FEF3C7" };
-  const vacantesFiltradas = empresa === "todos" ? vacantes : vacantes.filter(v => v.empresa === empresa || v.plataforma === empresa);
+  const vacantesFiltradas = vacantes
+    .filter(v => empresa === "todos" || v.empresa === empresa || v.plataforma === empresa)
+    .filter(v => {
+      if (!cvPuesto) return true;
+      return v.titulo.toLowerCase().includes(cvPuesto.toLowerCase());
+    })
+    .filter(v => {
+      if (!subtype) return true;
+      return v.titulo.toLowerCase().includes(subtype.toLowerCase());
+    })
+    .filter(v => {
+      if (!keyword.trim()) return true;
+      const kw = keyword.toLowerCase();
+      return v.titulo.toLowerCase().includes(kw) || v.descripcion.toLowerCase().includes(kw) || v.ubicacion.toLowerCase().includes(kw);
+    });
 
   const FilterBtn = ({ active, onClick, children, activeColor = "#7C3AED" }) => (
     <button onClick={onClick} style={{
@@ -131,6 +176,19 @@ export default function Home() {
                   ))}
                 </div>
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+                  <span style={{ fontSize: 11, color: "#9CA3AF", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", minWidth: 80 }}>Del CV:</span>
+                  <FilterBtn active={cvPuesto === ""} onClick={() => setCvPuesto("")} activeColor="#7C3AED">🔍 Todos</FilterBtn>
+                  {PUESTOS_CV.map(p => (
+                    <FilterBtn key={p.key} active={cvPuesto === p.key} onClick={() => setCvPuesto(p.key)} activeColor="#7C3AED">{p.label}</FilterBtn>
+                  ))}
+                </div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+                  <span style={{ fontSize: 11, color: "#9CA3AF", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", minWidth: 80 }}>Puesto:</span>
+                  {SUBTYPES.map(s => (
+                    <FilterBtn key={s.key} active={subtype === s.key} onClick={() => setSubtype(s.key)} activeColor="#9D174D">{s.label}</FilterBtn>
+                  ))}
+                </div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
                   <span style={{ fontSize: 11, color: "#9CA3AF", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", minWidth: 80 }}>Modalidad:</span>
                   {MODALIDADES.map(m => (
                     <FilterBtn key={m.key} active={modalidad === m.key} onClick={() => setModalidad(m.key)} activeColor={m.key === "presencial" ? "#D97706" : "#7C3AED"}>{m.label}</FilterBtn>
@@ -141,6 +199,17 @@ export default function Home() {
                   {EMPRESAS.map(e => (
                     <FilterBtn key={e.key} active={empresa === e.key} onClick={() => setEmpresa(e.key)} activeColor="#5B21B6">{e.label}</FilterBtn>
                   ))}
+                </div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <input
+                    value={keyword}
+                    onChange={e => setKeyword(e.target.value)}
+                    placeholder="🔤 Filtrar por palabra clave... ej: asistente legal bilingüe"
+                    style={{ flex: 1, padding: "10px 14px", border: "2px solid #E5E7EB", fontFamily: "'Poppins', sans-serif", fontSize: 13, outline: "none", background: "#fff", maxWidth: 420 }}
+                  />
+                  {keyword && (
+                    <button onClick={() => setKeyword("")} style={{ padding: "10px 14px", background: "#F3F4F6", border: "2px solid #E5E7EB", fontFamily: "'Poppins', sans-serif", fontSize: 12, cursor: "pointer", color: "#6B7280", fontWeight: 600 }}>✕ Limpiar</button>
+                  )}
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                   <button onClick={() => search()} disabled={loading} style={{ padding: "10px 28px", background: "#7C3AED", color: "#fff", border: "none", fontFamily: "'Poppins', sans-serif", fontSize: 13, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1 }}>
