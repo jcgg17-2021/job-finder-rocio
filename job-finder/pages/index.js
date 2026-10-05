@@ -30,7 +30,7 @@ const SUBTYPES = [
   { key: "", label: "🔍 Todos los puestos", tipo: "todos" },
   { key: "Paralegal Inmigración", label: "Paralegal Inmigración", tipo: "paralegal" },
   { key: "Asistente Paralegal Inmigración", label: "Asistente Paralegal Inmigración", tipo: "paralegal" },
-  { key: "Immigration Paralegal", label: "Immigration Paralegal", tipo: "paralegal" },
+  { key: "Immigration Legal Assistant", label: "Immigration Legal Assistant", tipo: "paralegal" },
   { key: "Immigration Paralegal Assistant", label: "Immigration Paralegal Assistant", tipo: "paralegal" },
   { key: "Paralegal Propiedad Intelectual", label: "Paralegal Propiedad Intelectual", tipo: "paralegal" },
   { key: "Paralegal Intellectual Property", label: "Paralegal Intellectual Property", tipo: "paralegal" },
